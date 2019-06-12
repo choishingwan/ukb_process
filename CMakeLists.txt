@@ -3,6 +3,7 @@ set(CMAKE_CXX_STANDARD 11)
 project(ukb_process)
 find_package (Threads)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
 add_library(lib_sqlite3
     ${CMAKE_SOURCE_DIR}/lib/sqlite3.c)
 add_library(lib_misc

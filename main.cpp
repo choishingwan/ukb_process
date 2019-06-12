@@ -6,6 +6,14 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <sqlite3.h>
+static int callback(void *NotUsed, int argc, char **argv, char **azColName) {
+   int i;
+   for(i = 0; i<argc; i++) {
+      printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+   }
+   printf("\n");
+   return 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -75,6 +83,64 @@ int main(int argc, char *argv[])
     }
     else{
         std::cerr << "Opened database: " << db_name << std::endl;
+    }
+    char *zErrMsg = nullptr;
+    std::string sql;
+    sql = "CREATE TABLE CODE("
+          "ID INT PRIMARY KEY NOT NULL);";
+    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
+    if( rc != SQLITE_OK ){
+          fprintf(stderr, "SQL error: %s\n", zErrMsg);
+          sqlite3_free(zErrMsg);
+    } else {
+          fprintf(stdout, "Table:CODE created successfully\n");
+    }
+    sql = "CREATE TABLE CODE_META("
+          "ID INT,"
+          "Value INT NOT NULL,"
+          "Meaning TEXT,"
+          "FOREIGN KEY (ID) REFERENCES CODE(ID));";
+    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
+    if( rc != SQLITE_OK ){
+          fprintf(stderr, "SQL error: %s\n", zErrMsg);
+          sqlite3_free(zErrMsg);
+    } else {
+          fprintf(stdout, "Table:CODE_META created successfully\n");
+    }
+    sql = "CREATE TABLE SAMPLE("
+          "ID INT PRIMARY KEY NOT NULL,"
+          "DropOut BOOLEAN);";
+    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
+    if( rc != SQLITE_OK ){
+          fprintf(stderr, "SQL error: %s\n", zErrMsg);
+          sqlite3_free(zErrMsg);
+    } else {
+          fprintf(stdout, "Table:SAMPLE created successfully\n");
+    }
+    sql = "CREATE TABLE PHENO_META("
+          "Path TEXT,"
+          "Category INT NOT NULL,"
+          "FieldID INT PRIMARY KEY NOT NULL,"
+          "Field TEXT NOT NULL,"
+          "Participants INT NOT NULL,"
+          "Items INT NOT NULL,"
+          "Stability TEXT NOT NULL,"
+          "ValueType TEXT NOT NULL,"
+          "Units TEXT, "
+          "ItemType TEXT,"
+          "Strata TEXT,"
+          "Sexed TEXT,"
+          "Instances INT NOT NULL,"
+          "Array INT NOT NULL,"
+          "Coding INT,"
+          "Notes TEXT,"
+          "FOREIGN KEY (Coding) REFERENCES CODE(ID));";
+    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
+    if( rc != SQLITE_OK ){
+          fprintf(stderr, "SQL error: %s\n", zErrMsg);
+          sqlite3_free(zErrMsg);
+    } else {
+          fprintf(stdout, "Table:SAMPLE created successfully\n");
     }
     sqlite3_close(db);
     return 0;

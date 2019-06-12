@@ -9,5 +9,5 @@ include_directories(${CMAKE_SOURCE_DIR}/lib)
 add_executable(${PROJECT_NAME} main.cpp)
 target_link_libraries( ${PROJECT_NAME} PRIVATE lib_sqlite3 )
 
-target_link_libraries (${PROJECT_NAME} PRIVATE ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries (lib_sqlite3 PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries (${PROJECT_NAME} PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
+target_link_libraries (lib_sqlite3 PRIVATE ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})

@@ -19,17 +19,16 @@ static int callback(void */*NotUsed*/, int argc, char **argv, char **azColName) 
 
 bool table_exists(sqlite3 *db, const std::string &table_name){
     sqlite3_stmt *stmt;
+    char *zErrMsg = nullptr;
     std::string sql = "select count(type) from sqlite_master where "
                       "type='table' and name='"+table_name+"'";
-    int rc = sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr);
+    int rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
     if (rc != SQLITE_OK) {
-        std::cerr << "Error: " << sqlite3_errmsg(db) << std::endl;
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
         throw std::runtime_error("");
     }
-    size_t n_row=0;
-    while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-        n_row++;
-    }
+    int n_row = 0;
     return n_row;
 }
 void create_tables(sqlite3 *db){

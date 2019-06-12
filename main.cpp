@@ -62,7 +62,10 @@ int main(int argc, char *argv[])
         error = true;
         std::cerr << "Error: You must provide output prefix!" << std::endl;
     }
-
+    if(error){
+        std::cerr << "Please check you have all the required input!" << std::endl;
+        return -1;
+    }
     std::string db_name = out_name+".db";
     sqlite3 *db;
     int rc = sqlite3_open(db_name.c_str(), &db);

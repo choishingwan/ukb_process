@@ -323,7 +323,7 @@ inline std::vector<std::string> csv_split(const std::string& seq)
             else
             {
                 temp = seq.substr(prev, pos - prev);
-                if (temp.front() == '\"' && !temp.back() == '\"')
+                if (temp.front() == '\"' && temp.back() != '\"')
                     quoted = true;
                 else
                     result.emplace_back(temp);

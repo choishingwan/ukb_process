@@ -124,8 +124,8 @@ void load_code(sqlite3* db, const std::string& code_showcase)
                 + line;
             throw std::runtime_error(error_message);
         }
-        for (size_t i = 4; i < token.size(); ++i) {
-            token[3] = token[3].append("," + token[i]);
+        for (size_t i = 3; i < token.size(); ++i) {
+            token[2] = token[2] + "," + token[i];
         }
         if (id.find(token[0]) == id.end()) {
             // ADD this into CODE table

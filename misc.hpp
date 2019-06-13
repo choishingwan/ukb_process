@@ -21,6 +21,7 @@
 #define _USE_MATH_DEFINES
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <math.h>
@@ -147,6 +148,11 @@ inline int getValue()
     return result;
 }
 
+inline bool file_exists(const std::string& name)
+{
+    std::ifstream f(name.c_str());
+    return f.good();
+}
 // this works on MAC and Linux
 inline size_t current_ram_usage()
 {

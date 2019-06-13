@@ -122,6 +122,16 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     double prev_percentage = 0;
     std::vector<std::string> token;
     std::unordered_set<std::string> id;
+    sqlite3_stmt* code_stat;
+    sqlite3_stmt* code_meta_stat;
+    std::string code_statement = "INSERT INTO CODE(ID) VALUES(@ID)";
+    std::string code_meta_statement =
+        "INSERT INTO CODE_META(ID, Value, Meaning) VALUES(@ID,@V, @M)";
+    sqlite3_prepare_v2(db, code_statement.c_str(), -1, &code_stat, nullptr);
+    sqlite3_prepare_v2(db, code_meta_statement.c_str(), -1, &code_meta_stat,
+                       nullptr);
+    sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
+
     while (std::getline(code, line)) {
         misc::trim(line);
         if (line.empty()) continue;
@@ -157,54 +167,45 @@ void load_code(sqlite3* db, const std::string& code_showcase)
         token[2] = "\"" + token[2] + "\"";
         if (id.find(token[0]) == id.end()) {
             // ADD this into CODE table
-            sql = "INSERT INTO CODE(ID) SELECT " + token[0]
-                  + " WHERE NOT EXISTS(SELECT 1 "
-                    "FROM CODE WHERE ID="
-                  + token[0] + ");";
-            rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-            if (rc != SQLITE_OK) {
-                fprintf(stderr, "SQL error: %s\n", zErrMsg);
-                sqlite3_free(zErrMsg);
-            }
+            sqlite3_bind_text(code_stat, 0, token[0].c_str(), -1,
+                              SQLITE_TRANSIENT);
+            sqlite3_step(code_stat);
+            sqlite3_clear_bindings(code_stat);
+            sqlite3_reset(code_stat);
             id.insert(token[0]);
         }
-        // NOW ADD OR INSERT TO CODE_META
-        //        sql = "INSERT INTO CODE_META(ID, Value, Meaning) SELECT " +
-        //        token[0]
-        //              + "," + token[1] + "," + token[2]
-        //              + " WHERE NOT EXISTS(SELECT 1 "
-        //                "FROM CODE_META WHERE ID="
-        //              + token[0] + " AND Value=" + token[1] + " AND Meaning="
-        //              + token[2]
-        //              + ");";
-        sql = "INSERT INTO CODE_META(ID, Value, Meaning) VALUES(" + token[0]
-              + "," + token[1] + "," + token[2] + ");";
-        rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-        if (rc != SQLITE_OK) {
-            std::cerr << sql << std::endl;
-            fprintf(stderr, "SQL error: %s\n", zErrMsg);
-            sqlite3_free(zErrMsg);
-            throw std::runtime_error("");
-        }
+
+        sqlite3_bind_text(code_meta_stat, 0, token[0].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(code_meta_stat, 1, token[1].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(code_meta_stat, 2, token[2].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_step(code_meta_stat);
+        sqlite3_clear_bindings(code_meta_stat);
+        sqlite3_reset(code_meta_stat);
     }
     code.close();
+    sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
 }
 
 int main(int argc, char* argv[])
 {
-    static const char* optString = "d:c:p:o:?";
+    static const char* optString = "d:c:p:o:rh?";
     static const struct option longOpts[] = {
         {"data", required_argument, nullptr, 'd'},
         {"code", required_argument, nullptr, 'c'},
         {"pheno", required_argument, nullptr, 'p'},
         {"out", required_argument, nullptr, 'o'},
+        {"replace", no_argument, nullptr, 'r'},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
     int longIndex = 0;
     int opt = 0;
     opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
     std::string data_showcase, code_showcase, pheno_name, out_name;
+    bool replace = false;
     while (opt != -1) {
         switch (opt)
         {
@@ -212,6 +213,7 @@ int main(int argc, char* argv[])
         case 'c': code_showcase = optarg; break;
         case 'p': pheno_name = optarg; break;
         case 'o': out_name = optarg; break;
+        case 'r': replace = true; break;
         case 'h':
         case '?': return 0;
         default:
@@ -246,9 +248,14 @@ int main(int argc, char* argv[])
     }
     std::string db_name = out_name + ".db";
     sqlite3* db;
-    bool create_table = true;
     if (misc::file_exists(db_name)) {
-        create_table = false;
+        // emit warning and delete file
+        if (!replace) {
+            std::cerr << "Error: Database file exists: " + db_name << std::endl;
+            std::cerr << "       Use --replace to replace it" << std::endl;
+            return -1;
+        }
+        std::remove(db_name.c_str());
     }
     int rc = sqlite3_open(db_name.c_str(), &db);
     if (rc) {
@@ -259,7 +266,7 @@ int main(int argc, char* argv[])
     {
         std::cerr << "Opened database: " << db_name << std::endl;
     }
-    if (create_table) create_tables(db);
+    create_tables(db);
     load_code(db, code_showcase);
 
     sqlite3_close(db);

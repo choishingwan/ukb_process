@@ -314,7 +314,7 @@ inline std::vector<std::string> csv_split(const std::string& seq)
         if (pos > prev) {
             if (quoted) {
                 // previous is quoted
-                temp = temp.append(seq.substr(prev, pos - prev));
+                temp = temp.append("," + seq.substr(prev, pos - prev));
                 if (temp.back() == '\"') {
                     quoted = false;
                     result.emplace_back(temp);
@@ -338,12 +338,13 @@ inline std::vector<std::string> csv_split(const std::string& seq)
     }
     if (prev < seq.length()) {
         if (quoted) {
-            temp.append(seq.substr(prev, std::string::npos));
+            temp.append("," + seq.substr(prev, std::string::npos));
             result.emplace_back(temp);
         }
         else
             result.emplace_back(seq.substr(prev, std::string::npos));
     }
+    return result;
 }
 // codes from stackoverflow
 inline std::vector<std::string> split(const std::string& seq,

@@ -169,12 +169,16 @@ void load_code(sqlite3* db, const std::string& code_showcase)
             id.insert(token[0]);
         }
         // NOW ADD OR INSERT TO CODE_META
-        sql = "INSERT INTO CODE_META(ID, Value, Meaning) SELECT " + token[0]
-              + "," + token[1] + "," + token[2]
-              + " WHERE NOT EXISTS(SELECT 1 "
-                "FROM CODE_META WHERE ID="
-              + token[0] + " AND Value=" + token[1] + " AND Meaning=" + token[2]
-              + ");";
+        //        sql = "INSERT INTO CODE_META(ID, Value, Meaning) SELECT " +
+        //        token[0]
+        //              + "," + token[1] + "," + token[2]
+        //              + " WHERE NOT EXISTS(SELECT 1 "
+        //                "FROM CODE_META WHERE ID="
+        //              + token[0] + " AND Value=" + token[1] + " AND Meaning="
+        //              + token[2]
+        //              + ");";
+        sql = "INSERT INTO CODE_META(ID, Value, Meaning) VALUES(" + token[0]
+              + "," + token[1] + "," + token[2] + ");";
         rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
         if (rc != SQLITE_OK) {
             std::cerr << sql << std::endl;

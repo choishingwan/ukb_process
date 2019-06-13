@@ -316,7 +316,8 @@ inline std::vector<std::string> csv_split(const std::string& seq)
             if (quoted) {
                 // previous is quoted
                 temp = temp.append("," + seq.substr(prev, pos - prev));
-                if (temp.back() == '\"') {
+                num_quote = std::count(temp.begin(), temp.end(), '\"');
+                if (temp.back() == '\"' && num_quote % 2 == 0) {
                     quoted = false;
                     result.emplace_back(temp);
                 }

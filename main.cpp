@@ -125,9 +125,9 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     while (std::getline(code, line)) {
         misc::trim(line);
         if (line.empty()) continue;
-        double cur_progress =
-            (static_cast<double>(processed) / static_cast<double>(file_length))
-            * 100.0;
+        double cur_progress = (static_cast<double>(processed++)
+                               / static_cast<double>(file_length))
+                              * 100.0;
         // progress bar can be slow when permutation + thresholding is used due
         // to the huge amount of processing required
         if (cur_progress - prev_percentage > 0.01) {

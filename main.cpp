@@ -146,6 +146,11 @@ void load_code(sqlite3* db, const std::string& code_showcase)
                 "FROM CODE WHERE ID=="
               + token[0] + " AND Value==" + token[1] + " AND Meaning==\""
               + token[2] + "\");";
+        rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
+        if (rc != SQLITE_OK) {
+            fprintf(stderr, "SQL error: %s\n", zErrMsg);
+            sqlite3_free(zErrMsg);
+        }
     }
     code.close();
 }

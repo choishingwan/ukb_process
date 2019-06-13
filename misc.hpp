@@ -303,6 +303,48 @@ double dnorm(double x, double mu = 0.0, double sigma = 1.0, bool log = false);
 double qnorm(double p, double mu = 0.0, double sigma = 1.0,
              bool lower_tail = true, bool log_p = false);
 
+inline std::vector<std::string> csv_split(const std::string& seq)
+{
+    std::size_t prev = 0, pos;
+    std::vector<std::string> result;
+    // we first need to find columns surrounded by "
+    bool quoted = false;
+    std::string temp;
+    while ((pos = seq.find_first_of(",", prev)) != std::string::npos) {
+        if (pos > prev) {
+            if (quoted) {
+                // previous is quoted
+                temp = temp.append(seq.substr(prev, pos - prev));
+                if (temp.back() == '\"') {
+                    quoted = false;
+                    result.emplace_back(temp);
+                }
+            }
+            else
+            {
+                temp = seq.substr(prev, pos - prev);
+                if (temp.front() == '\"')
+                    quoted = true;
+                else
+                    result.emplace_back(temp);
+            }
+        }
+        else if (pos == prev)
+        {
+            // this is null
+            result.emplace_back("NULL");
+        }
+        prev = pos + 1;
+    }
+    if (prev < seq.length()) {
+        if (quoted) {
+            temp.append(seq.substr(prev, std::string::npos));
+            result.emplace_back(temp);
+        }
+        else
+            result.emplace_back(seq.substr(prev, std::string::npos));
+    }
+}
 // codes from stackoverflow
 inline std::vector<std::string> split(const std::string& seq,
                                       const std::string& separators = "\t ")
@@ -310,10 +352,7 @@ inline std::vector<std::string> split(const std::string& seq,
     std::size_t prev = 0, pos;
     std::vector<std::string> result;
     while ((pos = seq.find_first_of(separators, prev)) != std::string::npos) {
-        if (pos > prev)
-            result.emplace_back(seq.substr(prev, pos - prev));
-        else if (pos == prev)
-            result.emplace_back("NULL");
+        if (pos > prev) result.emplace_back(seq.substr(prev, pos - prev));
         prev = pos + 1;
     }
     if (prev < seq.length())

@@ -146,8 +146,8 @@ void load_code(sqlite3* db, const std::string& code_showcase)
             fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
         }
         // CSV input
-        token = misc::split(line, ",");
-        if (token.size() < 3) {
+        token = misc::csv_split(line);
+        if (token.size() == 3) {
             std::string error_message =
                 "Error: Undefined Code Showcase "
                 "format! File is expected to have exactly 3 columns.\n"
@@ -240,7 +240,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
             fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
         }
         // CSV input
-        token = misc::split(line, ",");
+        token = misc::csv_split(line);
         if (token.size() != 17) {
             std::string error_message =
                 "Error: Undefined Data Showcase "

@@ -325,7 +325,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name, const bool dange
                 std::string error_message = "Error: We expect all Field ID from the phenotype to have the following format: f.x.x.x: "+token[i];
                 throw std::runtime_error(error_message);
             }
-            phenotype_meta.emplace_back(std::make_pair(token[1], token[2]));
+            phenotype_meta.emplace_back(std::make_pair(subtoken[1], subtoken[2]));
         }
     }
     const size_t num_pheno = phenotype_meta.size();

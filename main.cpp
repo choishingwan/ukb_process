@@ -256,7 +256,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
                 token[i].erase(
                     std::remove(token[i].begin(), token[i].end(), '\"'),
                     token[i].end());
-                token[i] = "\"" + token[i] + "\"";
+                if (token[i] != "NULL") token[i] = "\"" + token[i] + "\"";
             }
             sqlite3_bind_text(dat_stat, static_cast<int>(i) + 1,
                               token[i].c_str(), -1, SQLITE_TRANSIENT);

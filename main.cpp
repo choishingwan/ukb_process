@@ -1,4 +1,5 @@
 #include "misc.hpp"
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <getopt.h>
@@ -127,6 +128,11 @@ void load_code(sqlite3* db, const std::string& code_showcase)
         for (size_t i = 3; i < token.size(); ++i) {
             token[2] = token[2] + "," + token[i];
         }
+        // clean up the string
+
+        token[2].erase(std::remove(token[2].begin(), token[2].end(), '\"'),
+                       token[2].end());
+        token[2] = "\"" + token[2] + "\"";
         if (id.find(token[0]) == id.end()) {
             // ADD this into CODE table
             sql = "INSERT INTO CODE(ID) SELECT " + token[0]

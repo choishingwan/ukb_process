@@ -310,6 +310,7 @@ inline std::vector<std::string> csv_split(const std::string& seq)
     // we first need to find columns surrounded by "
     bool quoted = false;
     std::string temp;
+    long num_quote;
     while ((pos = seq.find_first_of(",", prev)) != std::string::npos) {
         if (pos > prev) {
             if (quoted) {
@@ -323,7 +324,9 @@ inline std::vector<std::string> csv_split(const std::string& seq)
             else
             {
                 temp = seq.substr(prev, pos - prev);
-                if (temp.front() == '\"' && temp.back() != '\"')
+                num_quote = std::count(temp.begin(), temp.end(), '\"');
+                if (temp.front() == '\"' && temp.back() != '\"'
+                    && num_quote % 2 != 0)
                     quoted = true;
                 else
                     result.emplace_back(temp);

@@ -215,7 +215,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
     double prev_percentage = 0;
     std::vector<std::string> token;
     std::unordered_set<std::string> id;
-    sqlite3_stmt* data_stat;
+    sqlite3_stmt* dat_stat;
     std::string data_statement =
         "INSERT INTO PHENO_META(Path, Category, FieldID, Field, Participants, "
         "Items, Stability, ValueType, Units, ItemType, Strata, Sexed, "
@@ -223,7 +223,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
         "VALUES(@PATH,@CATEGORY,@FIELDID,@FIELD,@PARTICIPANTS,@ITEM,@STABILITY,"
         "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING,@"
         "NOTES,@LINK)";
-    sqlite3_prepare_v2(db, data_statement.c_str(), -1, &data_stat, nullptr);
+    sqlite3_prepare_v2(db, data_statement.c_str(), -1, &dat_stat, nullptr);
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
     while (std::getline(data, line)) {
         misc::trim(line);
@@ -257,12 +257,12 @@ void load_data(sqlite3* db, const std::string& data_showcase)
                     token[i].end());
                 token[i] = "\"" + token[i] + "\"";
             }
-            sqlite3_bind_text(data_stat, static_cast<int>(i), token[i].c_str(),
+            sqlite3_bind_text(dat_stat, static_cast<int>(i), token[i].c_str(),
                               -1, SQLITE_TRANSIENT);
         }
-        sqlite3_step(data_stat);
-        sqlite3_clear_bindings(data_stat);
-        sqlite3_reset(data_stat);
+        sqlite3_step(dat_stat);
+        sqlite3_clear_bindings(dat_stat);
+        sqlite3_reset(dat_stat);
     }
     data.close();
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);

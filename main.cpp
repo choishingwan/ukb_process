@@ -242,7 +242,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
             fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
         }
         // CSV input
-        token = misc::split(line, "\t");
+        token = misc::split(line, ",");
         if (token.size() != 17) {
             std::string error_message =
                 "Error: Undefined Data Showcase "

@@ -133,7 +133,6 @@ void load_code(sqlite3* db, const std::string& code_showcase)
               << std::endl;
     std::cerr << "Header line of code showcase: " << std::endl;
     std::cerr << line << std::endl;
-    size_t processed = 0;
     double prev_percentage = 0;
     std::vector<std::string> token;
     std::unordered_set<std::string> id;
@@ -150,7 +149,7 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     while (std::getline(code, line)) {
         misc::trim(line);
         if (line.empty()) continue;
-        double cur_progress = (static_cast<double>(processed++)
+        double cur_progress = (static_cast<double>(code.tellg())
                                / static_cast<double>(file_length))
                               * 100.0;
         // progress bar can be slow when permutation + thresholding is used due
@@ -227,7 +226,6 @@ void load_data(sqlite3* db, const std::string& data_showcase)
               << std::endl;
     std::cerr << "Header line of data showcase: " << std::endl;
     std::cerr << line << std::endl;
-    size_t processed = 0;
     double prev_percentage = 0;
     std::vector<std::string> token;
     sqlite3_stmt* dat_stat;
@@ -243,7 +241,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
     while (std::getline(data, line)) {
         misc::trim(line);
         if (line.empty()) continue;
-        double cur_progress = (static_cast<double>(processed++)
+        double cur_progress = (static_cast<double>(data.tellg())
                                / static_cast<double>(file_length))
                               * 100.0;
         // progress bar can be slow when permutation + thresholding is used due
@@ -332,7 +330,6 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name){
     }
     const size_t num_pheno = phenotype_meta.size();
     std::cerr << "Start processing phenotype file with " << num_pheno << " entries" << std::endl;
-    size_t processed = 0;
     double prev_percentage = 0;
     sqlite3_stmt* pheno_stat;
     std::string pheno_statement =
@@ -347,7 +344,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name){
     while (std::getline(pheno, line)) {
         misc::trim(line);
         if (line.empty()) continue;
-        double cur_progress = (static_cast<double>(processed++)
+        double cur_progress = (static_cast<double>(pheno.tellg())
                                / static_cast<double>(file_length))
                               * 100.0;
         // progress bar can be slow when permutation + thresholding is used due

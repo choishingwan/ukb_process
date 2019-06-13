@@ -319,8 +319,8 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
     std::vector<std::string> subtoken;
     for (size_t i = 0; i < token.size(); ++i) {
         if (token[i] == "f.eid" || token[i] == "\"f.eid\"") {
-            id_idx = i;
             phenotype_meta.emplace_back(std::make_pair("0", "0"));
+            id_idx = i;
         }
         else
         {
@@ -333,7 +333,8 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                                             + token[i];
                 throw std::runtime_error(error_message);
             }
-            phenotype_meta.emplace_back(std::make_pair(subtoken[1], subtoken[2]));
+            phenotype_meta.emplace_back(
+                std::make_pair(subtoken[1], subtoken[2]));
         }
     }
     const size_t num_pheno = phenotype_meta.size();

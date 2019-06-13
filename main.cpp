@@ -21,12 +21,13 @@ static int callback(void* /*NotUsed*/, int argc, char** argv, char** azColName)
     return 0;
 }
 
-void create_tables(sqlite3* db, const std::string &memory)
+void create_tables(sqlite3* db, const std::string& memory)
 {
     int rc;
     char* zErrMsg = nullptr;
     std::string sql;
-    sqlite3_exec(db, std::string("PRAGMA cache_size = "+memory).c_str(), nullptr, nullptr, &zErrMsg);
+    sqlite3_exec(db, std::string("PRAGMA cache_size = " + memory).c_str(),
+                 nullptr, nullptr, &zErrMsg);
     sql = "CREATE TABLE CODE("
           "ID INT PRIMARY KEY NOT NULL);";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
@@ -106,7 +107,6 @@ void create_tables(sqlite3* db, const std::string &memory)
     {
         fprintf(stdout, "Table:PHENOTYPE created successfully\n");
     }
-
 }
 
 
@@ -199,7 +199,8 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     }
     code.close();
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
-    sqlite3_exec(db, "CREATE INDEX 'CODE_META_Index' ON 'CODE_META' ('ID')", nullptr, nullptr, &zErrMsg);
+    sqlite3_exec(db, "CREATE INDEX 'CODE_META_Index' ON 'CODE_META' ('ID')",
+                 nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
 }
 
@@ -282,11 +283,14 @@ void load_data(sqlite3* db, const std::string& data_showcase)
     data.close();
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
-    sqlite3_exec(db, "CREATE INDEX 'DATA_Index' ON 'DATA_META' ('FieldID')", nullptr, nullptr, &zErrMsg);
+    sqlite3_exec(db, "CREATE INDEX 'DATA_Index' ON 'DATA_META' ('FieldID')",
+                 nullptr, nullptr, &zErrMsg);
 }
 
 
-void load_phenotype(sqlite3* db, const std::string& pheno_name, const bool danger){
+void load_phenotype(sqlite3* db, const std::string& pheno_name,
+                    const bool danger)
+{
     std::ifstream pheno(pheno_name.c_str());
     if (!pheno.is_open()) {
         std::string error_message =
@@ -306,37 +310,42 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name, const bool dange
     std::cerr << std::endl
               << "============================================================"
               << std::endl;
-    //process the header
+    // process the header
     // should be the Field ID and Instance number
     typedef std::pair<std::string, std::string> pheno_info;
-    size_t id_idx=0;
+    size_t id_idx = 0;
     std::vector<pheno_info> phenotype_meta;
     std::vector<std::string> token = misc::split(line, "\t");
     std::vector<std::string> subtoken;
-    for(size_t i = 0; i <token.size(); ++i){
-        if(token[i]=="f.eid"){
-            id_idx=i;
-            phenotype_meta.emplace_back(std::make_pair("0","0"));
+    for (size_t i = 0; i < token.size(); ++i) {
+        if (token[i] == "f.eid" || token[i] == "\"f.eid\"") {
+            id_idx = i;
+            phenotype_meta.emplace_back(std::make_pair("0", "0"));
         }
-        else{
+        else
+        {
             // we don't care about the array index
             subtoken = misc::split(token[i], ".");
-            if(subtoken.size() != 4){
-                std::string error_message = "Error: We expect all Field ID from the phenotype to have the following format: f.x.x.x: "+token[i];
+            if (subtoken.size() != 4) {
+                std::string error_message = "Error: We expect all Field ID "
+                                            "from the phenotype to have the "
+                                            "following format: f.x.x.x: "
+                                            + token[i];
                 throw std::runtime_error(error_message);
             }
             phenotype_meta.emplace_back(std::make_pair(token[1], token[2]));
         }
     }
     const size_t num_pheno = phenotype_meta.size();
-    std::cerr << "Start processing phenotype file with " << num_pheno << " entries" << std::endl;
+    std::cerr << "Start processing phenotype file with " << num_pheno
+              << " entries" << std::endl;
     double prev_percentage = 0;
     sqlite3_stmt* pheno_stat;
     std::string pheno_statement =
         "INSERT INTO PHENOTYPE(SampleID, FieldID, Instance, Phenotype) "
         "VALUES(@S,@F,@I,@P)";
     sqlite3_prepare_v2(db, pheno_statement.c_str(), -1, &pheno_stat, nullptr);
-    if(danger){
+    if (danger) {
         sqlite3_exec(db, "PRAGMA synchronous = OFF", NULL, NULL, &zErrMsg);
         sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", NULL, NULL, &zErrMsg);
     }
@@ -363,14 +372,16 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name, const bool dange
         if (token.size() != num_pheno) {
             std::string error_message =
                 "Error: Undefined Phenotype file"
-                "format! File is expected to have exactly "+misc::to_string(num_pheno)+" columns. Line has :"+std::to_string(token.size())+" column(s)\n";
+                "format! File is expected to have exactly "
+                + misc::to_string(num_pheno) + " columns. Line has :"
+                + std::to_string(token.size()) + " column(s)\n";
             throw std::runtime_error(error_message);
         }
-        for(size_t i = 2; i < num_pheno; ++i){
-            if(token[i] == "NA") continue;
-            //sample ID
-            sqlite3_bind_text(pheno_stat, 1, token[0].c_str(),
-                              -1, SQLITE_TRANSIENT);
+        for (size_t i = 0; i < num_pheno; ++i) {
+            if (token[i] == "NA" || i == id_idx) continue;
+            // sample ID
+            sqlite3_bind_text(pheno_stat, 1, token[id_idx].c_str(), -1,
+                              SQLITE_TRANSIENT);
             // FieldID
             sqlite3_bind_text(pheno_stat, 2, phenotype_meta[i].first.c_str(),
                               -1, SQLITE_TRANSIENT);
@@ -378,10 +389,10 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name, const bool dange
             sqlite3_bind_text(pheno_stat, 3, phenotype_meta[i].second.c_str(),
                               -1, SQLITE_TRANSIENT);
             // phenotype
-            if (token[i].front()!='\"') token[i] = "\"" + token[i];
-            if(token[i].back()!='\"') token[i] = token[i]+"\"";
-            sqlite3_bind_text(pheno_stat, 4, token[i].c_str(),
-                              -1, SQLITE_TRANSIENT);
+            if (token[i].front() != '\"') token[i] = "\"" + token[i];
+            if (token[i].back() != '\"') token[i] = token[i] + "\"";
+            sqlite3_bind_text(pheno_stat, 4, token[i].c_str(), -1,
+                              SQLITE_TRANSIENT);
             sqlite3_step(pheno_stat);
             sqlite3_clear_bindings(pheno_stat);
             sqlite3_reset(pheno_stat);
@@ -391,7 +402,10 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name, const bool dange
     // currently this should be the most useful index. Maybe add some more if
     // we can figure out their use case
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
-    sqlite3_exec(db, "CREATE INDEX 'PHENOTYPE_Index' ON 'PHENOTYPE' ('FieldID','Instance')", nullptr, nullptr, &zErrMsg);
+    sqlite3_exec(
+        db,
+        "CREATE INDEX 'PHENOTYPE_Index' ON 'PHENOTYPE' ('FieldID','Instance')",
+        nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
 }
 int main(int argc, char* argv[])
@@ -402,21 +416,22 @@ int main(int argc, char* argv[])
         {"code", required_argument, nullptr, 'c'},
         {"pheno", required_argument, nullptr, 'p'},
         {"out", required_argument, nullptr, 'o'},
-    {"memory", required_argument, nullptr, 'm'},
-    {"replace", no_argument, nullptr, 'r'},
-    {"danger", no_argument, nullptr, 'D'},
+        {"memory", required_argument, nullptr, 'm'},
+        {"replace", no_argument, nullptr, 'r'},
+        {"danger", no_argument, nullptr, 'D'},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
     int longIndex = 0;
     int opt = 0;
     opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
-    std::string data_showcase, code_showcase, pheno_name, out_name, memory="1024";
-    bool replace = false,danger=false;
+    std::string data_showcase, code_showcase, pheno_name, out_name,
+        memory = "1024";
+    bool replace = false, danger = false;
     while (opt != -1) {
         switch (opt)
         {
         case 'd': data_showcase = optarg; break;
-        case 'm': memory=optarg; break;
+        case 'm': memory = optarg; break;
         case 'D': danger = true; break;
         case 'c': code_showcase = optarg; break;
         case 'p': pheno_name = optarg; break;

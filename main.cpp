@@ -108,16 +108,16 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     int rc;
     char* zErrMsg = nullptr;
     // there is a header
+    code.seekg(0, code.end);
+    auto file_length = code.tellg();
+    code.clear();
+    code.seekg(0, code.beg);
     std::getline(code, line);
     std::cerr << std::endl
               << "============================================================"
               << std::endl;
     std::cerr << "Header line of code showcase: " << std::endl;
     std::cerr << line << std::endl;
-    code.seekg(0, code.end);
-    auto file_length = code.tellg();
-    code.clear();
-    code.seekg(0, code.beg);
     size_t processed = 0;
     double prev_percentage = 0;
     std::vector<std::string> token;

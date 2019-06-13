@@ -65,7 +65,6 @@ void create_tables(sqlite3* db)
         fprintf(stdout, "Table:SAMPLE created successfully\n");
     }
     sql = "CREATE TABLE PHENO_META("
-          "Path TEXT,"
           "Category INT NOT NULL,"
           "FieldID INT PRIMARY KEY NOT NULL,"
           "Field TEXT NOT NULL,"
@@ -80,7 +79,6 @@ void create_tables(sqlite3* db)
           "Instances INT NOT NULL,"
           "Array INT NOT NULL,"
           "Coding INT,"
-          "Notes TEXT,"
           "FOREIGN KEY (Coding) REFERENCES CODE(ID));";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
     if (rc != SQLITE_OK) {
@@ -217,12 +215,11 @@ void load_data(sqlite3* db, const std::string& data_showcase)
     std::unordered_set<std::string> id;
     sqlite3_stmt* dat_stat;
     std::string data_statement =
-        "INSERT INTO PHENO_META(Path, Category, FieldID, Field, Participants, "
+        "INSERT INTO PHENO_META(Category, FieldID, Field, Participants, "
         "Items, Stability, ValueType, Units, ItemType, Strata, Sexed, "
-        "Instances, Array, Coding, Notes, Link) "
-        "VALUES(@PATH,@CATEGORY,@FIELDID,@FIELD,@PARTICIPANTS,@ITEM,@STABILITY,"
-        "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING,@"
-        "NOTES,@LINK)";
+        "Instances, Array, Coding) "
+        "VALUES(@CATEGORY,@FIELDID,@FIELD,@PARTICIPANTS,@ITEM,@STABILITY,"
+        "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING)";
     sqlite3_prepare_v2(db, data_statement.c_str(), -1, &dat_stat, nullptr);
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
 
@@ -251,15 +248,17 @@ void load_data(sqlite3* db, const std::string& data_showcase)
                 + line;
             throw std::runtime_error(error_message);
         }
-        for (size_t i = 0; i < 17; ++i) {
-            if (i == 0 || i == 3 || (i >= 6 && i <= 11) || i >= 15) {
+        for (size_t i = 1; i < 15; ++i) {
+            // we skip the first one and last 2 as they are not as useful
+            // can always retrieve those using data showcase
+            if (i == 3 || (i >= 6 && i <= 11)) {
                 token[i].erase(
                     std::remove(token[i].begin(), token[i].end(), '\"'),
                     token[i].end());
                 if (token[i] != "NULL") token[i] = "\"" + token[i] + "\"";
             }
-            sqlite3_bind_text(dat_stat, static_cast<int>(i) + 1,
-                              token[i].c_str(), -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(dat_stat, static_cast<int>(i), token[i].c_str(),
+                              -1, SQLITE_TRANSIENT);
         }
         sqlite3_step(dat_stat);
         sqlite3_clear_bindings(dat_stat);

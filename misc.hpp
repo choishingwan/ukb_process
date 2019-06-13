@@ -310,7 +310,10 @@ inline std::vector<std::string> split(const std::string& seq,
     std::size_t prev = 0, pos;
     std::vector<std::string> result;
     while ((pos = seq.find_first_of(separators, prev)) != std::string::npos) {
-        if (pos > prev) result.emplace_back(seq.substr(prev, pos - prev));
+        if (pos > prev)
+            result.emplace_back(seq.substr(prev, pos - prev));
+        else if (pos == prev)
+            result.emplace_back("NULL");
         prev = pos + 1;
     }
     if (prev < seq.length())

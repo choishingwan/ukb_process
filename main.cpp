@@ -148,8 +148,10 @@ void load_code(sqlite3* db, const std::string& code_showcase)
               + ");";
         rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
         if (rc != SQLITE_OK) {
+            std::cerr << sql << std::endl;
             fprintf(stderr, "SQL error: %s\n", zErrMsg);
             sqlite3_free(zErrMsg);
+            throw std::runtime_error("");
         }
     }
     code.close();

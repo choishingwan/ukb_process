@@ -117,12 +117,15 @@ void load_code(sqlite3* db, const std::string& code_showcase)
         if (line.empty()) continue;
         // CSV input
         token = misc::split(line, ",");
-        if (token.size() != 3) {
+        if (token.size() < 3) {
             std::string error_message =
                 "Error: Undefined Code Showcase "
                 "format! File is expected to have exactly 3 columns.\n"
                 + line;
             throw std::runtime_error(error_message);
+        }
+        for (size_t i = 4; i < token.size(); ++i) {
+            token[3].append("," + token[i]);
         }
         if (id.find(token[0]) == id.end()) {
             // ADD this into CODE table
@@ -216,7 +219,7 @@ int main(int argc, char* argv[])
         std::cerr << "Opened database: " << db_name << std::endl;
     }
     create_tables(db);
-
+    load_code(db, code_showcase);
 
     sqlite3_close(db);
     return 0;

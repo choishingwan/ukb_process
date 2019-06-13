@@ -257,9 +257,31 @@ void load_data(sqlite3* db, const std::string& data_showcase)
                     token[i].end());
                 token[i] = "\"" + token[i] + "\"";
             }
-            sqlite3_bind_text(dat_stat, static_cast<int>(i), token[i].c_str(),
-                              -1, SQLITE_TRANSIENT);
         }
+        sqlite3_bind_text(dat_stat, 0, token[0].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 1, token[1].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 2, token[2].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 3, token[3].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 4, token[4].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 5, token[5].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 6, token[6].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 7, token[7].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 8, token[8].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 9, token[9].c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 10, token[10].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 11, token[11].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 12, token[12].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 13, token[13].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 14, token[14].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 15, token[15].c_str(), -1,
+                          SQLITE_TRANSIENT);
+        sqlite3_bind_text(dat_stat, 16, token[16].c_str(), -1,
+                          SQLITE_TRANSIENT);
         sqlite3_step(dat_stat);
         sqlite3_clear_bindings(dat_stat);
         sqlite3_reset(dat_stat);

@@ -218,7 +218,7 @@ int main(int argc, char* argv[])
     {
         std::cerr << "Opened database: " << db_name << std::endl;
     }
-    if (!create_table) create_tables(db);
+    if (create_table) create_tables(db);
     load_code(db, code_showcase);
 
     sqlite3_close(db);

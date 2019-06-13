@@ -333,7 +333,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                                             + token[i];
                 throw std::runtime_error(error_message);
             }
-            phenotype_meta.emplace_back(std::make_pair(token[1], token[2]));
+            phenotype_meta.emplace_back(std::make_pair(subtoken[1], subtoken[2]));
         }
     }
     const size_t num_pheno = phenotype_meta.size();

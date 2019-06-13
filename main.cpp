@@ -109,13 +109,35 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     char* zErrMsg = nullptr;
     // there is a header
     std::getline(code, line);
+    std::cerr << std::endl
+              << "============================================================"
+              << std::endl;
     std::cerr << "Header line of code showcase: " << std::endl;
     std::cerr << line << std::endl;
+    code.seekg(0, code.end);
+    auto file_length = code.tellg();
+    code.clear();
+    code.seekg(0, code.beg);
+    size_t processed = 0;
+    double prev_percentage = 0;
     std::vector<std::string> token;
     std::unordered_set<std::string> id;
     while (std::getline(code, line)) {
         misc::trim(line);
         if (line.empty()) continue;
+        double cur_progress =
+            (static_cast<double>(processed) / static_cast<double>(file_length))
+            * 100.0;
+        // progress bar can be slow when permutation + thresholding is used due
+        // to the huge amount of processing required
+        if (cur_progress - prev_percentage > 0.01) {
+            fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
+            prev_percentage = cur_progress;
+        }
+
+        if (prev_percentage >= 100.0) {
+            fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
+        }
         // CSV input
         token = misc::split(line, ",");
         if (token.size() < 3) {
@@ -144,6 +166,7 @@ void load_code(sqlite3* db, const std::string& code_showcase)
                 fprintf(stderr, "SQL error: %s\n", zErrMsg);
                 sqlite3_free(zErrMsg);
             }
+            id.insert(token[0]);
         }
         // NOW ADD OR INSERT TO CODE_META
         sql = "INSERT INTO CODE_META(ID, Value, Meaning) SELECT " + token[0]
@@ -161,6 +184,7 @@ void load_code(sqlite3* db, const std::string& code_showcase)
         }
     }
     code.close();
+    fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
 }
 
 int main(int argc, char* argv[])

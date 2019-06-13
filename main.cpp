@@ -409,8 +409,36 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
         nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
 }
+void usage(){
+
+    fprintf(stderr, " UK Biobank Phenotype Processing\n");
+    fprintf(stderr, " Sam Choi\n");
+    fprintf(stderr, " v0.1.0 ( 2019-06-04 )\n");
+    fprintf(stderr, " ==============================\n");
+    fprintf(stderr, " This program will process the UK biobank Phenotype\n");
+    fprintf(stderr, " information and generate a SQLite data base\n");
+    fprintf(stderr, " Usage: ukb_process -d <Data showcase> -c <Code showcase> \\\n");
+    fprintf(stderr, "                    -p <Phenotype> -o <Output>\n");
+    fprintf(stderr, "    -d | --data     Data showcase file. Can be found here:\n");
+    fprintf(stderr, "                    http://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv\n");
+    fprintf(stderr, "    -c | --code     Data coding information. Can be found here:\n");
+    fprintf(stderr, "                    http://biobank.ndph.ox.ac.uk/~bbdatan/Codings_Showcase.csv\n");
+    fprintf(stderr, "    -p | --pheno    UK Biobank Phenotype file\n");
+    fprintf(stderr, "    -o | --out      Name of the generated database\n");
+    fprintf(stderr, "    -D | --danger   Enable optioned that speed up processing\n");
+    fprintf(stderr, "                    May generate corrupted database file if\n");
+    fprintf(stderr, "                    server is unstable\n");
+    fprintf(stderr, "    -m | --memory   Cache memory, default 1024byte\n");
+    fprintf(stderr, "    -r | --replace  Replace existing ukb database file\n");
+    fprintf(stderr,
+            "       -h | --help        Display this help message\n\n\n");
+}
 int main(int argc, char* argv[])
 {
+    if(argc < 2){
+        usage();
+        return -1;
+    }
     static const char* optString = "d:c:p:o:m:rdh?";
     static const struct option longOpts[] = {
         {"data", required_argument, nullptr, 'd'},
@@ -439,7 +467,9 @@ int main(int argc, char* argv[])
         case 'o': out_name = optarg; break;
         case 'r': replace = true; break;
         case 'h':
-        case '?': return 0;
+        case '?':
+            usage();
+            return 0;
         default:
             throw "Undefined operator, please use --help for more "
                   "information!";

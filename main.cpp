@@ -331,6 +331,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name){
         }
     }
     const size_t num_pheno = phenotype_meta.size();
+    std::cerr << "Start processing phenotype file with " << num_pheno << " entries" << std::endl;
     size_t processed = 0;
     double prev_percentage = 0;
     sqlite3_stmt* pheno_stat;
@@ -339,6 +340,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name){
         "VALUES(@S,@F,@I,@P)";
     sqlite3_prepare_v2(db, pheno_statement.c_str(), -1, &pheno_stat, nullptr);
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
+    fprintf(stderr, "\rProcessing %03.2f%%", 0);
     while (std::getline(pheno, line)) {
         misc::trim(line);
         if (line.empty()) continue;

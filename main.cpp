@@ -377,10 +377,8 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name){
             sqlite3_bind_text(pheno_stat, 3, phenotype_meta[i].second.c_str(),
                               -1, SQLITE_TRANSIENT);
             // phenotype
-            token[i].erase(
-                std::remove(token[i].begin(), token[i].end(), '\"'),
-                token[i].end());
-            if (token[i] != "NULL") token[i] = "\"" + token[i] + "\"";
+            if (token[i].front()!='\"') token[i] = "\"" + token[i];
+            if(token[i].back()!='\"') token[i] = token[i]+"\"";
             sqlite3_bind_text(pheno_stat, 4, token[i].c_str(),
                               -1, SQLITE_TRANSIENT);
             sqlite3_step(pheno_stat);

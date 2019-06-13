@@ -105,7 +105,6 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     }
     std::string line;
     std::string sql;
-    int rc;
     char* zErrMsg = nullptr;
     // there is a header
     code.seekg(0, code.end);
@@ -174,7 +173,6 @@ void load_code(sqlite3* db, const std::string& code_showcase)
             sqlite3_reset(code_stat);
             id.insert(token[0]);
         }
-
         sqlite3_bind_text(code_meta_stat, 0, token[0].c_str(), -1,
                           SQLITE_TRANSIENT);
         sqlite3_bind_text(code_meta_stat, 1, token[1].c_str(), -1,
@@ -187,9 +185,89 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     }
     code.close();
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
-    fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
+    fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
 }
 
+void load_data(sqlite3* db, const std::string& data_showcase)
+{
+    std::ifstream data(data_showcase.c_str());
+    if (!data.is_open()) {
+        std::string error_message =
+            "Error: Cannot open data showcase file: " + data_showcase
+            + ". Please check you have the correct input";
+        throw std::runtime_error(error_message);
+    }
+    std::string line;
+    std::string sql;
+    char* zErrMsg = nullptr;
+    // there is a header
+    data.seekg(0, data.end);
+    auto file_length = data.tellg();
+    data.clear();
+    data.seekg(0, data.beg);
+    std::getline(data, line);
+    std::cerr << std::endl
+              << "============================================================"
+              << std::endl;
+    std::cerr << "Header line of data showcase: " << std::endl;
+    std::cerr << line << std::endl;
+    size_t processed = 0;
+    double prev_percentage = 0;
+    std::vector<std::string> token;
+    std::unordered_set<std::string> id;
+    sqlite3_stmt* data_stat;
+    std::string data_statement =
+        "INSERT INTO PHENO_META(Path, Category, FieldID, Field, Participants, "
+        "Items, Stability, ValueType, Units, ItemType, Strata, Sexed, "
+        "Instances, Array, Coding, Notes, Link) "
+        "VALUES(@PATH,@CATEGORY,@FIELDID,@FIELD,@PARTICIPANTS,@ITEM,@STABILITY,"
+        "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING,@"
+        "NOTES,@LINK)";
+    sqlite3_prepare_v2(db, data_statement.c_str(), -1, &data_stat, nullptr);
+    sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
+    while (std::getline(data, line)) {
+        misc::trim(line);
+        if (line.empty()) continue;
+        double cur_progress = (static_cast<double>(processed++)
+                               / static_cast<double>(file_length))
+                              * 100.0;
+        // progress bar can be slow when permutation + thresholding is used due
+        // to the huge amount of processing required
+        if (cur_progress - prev_percentage > 0.01) {
+            fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
+            prev_percentage = cur_progress;
+        }
+
+        if (prev_percentage >= 100.0) {
+            fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
+        }
+        // CSV input
+        token = misc::split(line, "\t");
+        if (token.size() != 17) {
+            std::string error_message =
+                "Error: Undefined Data Showcase "
+                "format! File is expected to have exactly 17 columns.\n"
+                + line;
+            throw std::runtime_error(error_message);
+        }
+        for (size_t i = 0; i < 17; ++i) {
+            if (i == 0 || i == 3 || (i >= 6 && i <= 11) || i >= 15) {
+                token[i].erase(
+                    std::remove(token[i].begin(), token[i].end(), '\"'),
+                    token[i].end());
+                token[i] = "\"" + token[i] + "\"";
+            }
+            sqlite3_bind_text(data_stat, static_cast<int>(i), token[i].c_str(),
+                              -1, SQLITE_TRANSIENT);
+        }
+        sqlite3_step(data_stat);
+        sqlite3_clear_bindings(data_stat);
+        sqlite3_reset(data_stat);
+    }
+    data.close();
+    sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
+    fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
+}
 int main(int argc, char* argv[])
 {
     static const char* optString = "d:c:p:o:rh?";
@@ -268,7 +346,7 @@ int main(int argc, char* argv[])
     }
     create_tables(db);
     load_code(db, code_showcase);
-
+    load_data(db, data_showcase);
     sqlite3_close(db);
     return 0;
 }

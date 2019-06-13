@@ -21,12 +21,12 @@ static int callback(void* /*NotUsed*/, int argc, char** argv, char** azColName)
     return 0;
 }
 
-void create_tables(sqlite3* db)
+void create_tables(sqlite3* db, const std::string &memory)
 {
     int rc;
     char* zErrMsg = nullptr;
     std::string sql;
-
+    sqlite3_exec(db, std::string("PRAGMA cache_size = "+memory).c_str(), nullptr, nullptr, &zErrMsg);
     sql = "CREATE TABLE CODE("
           "ID INT PRIMARY KEY NOT NULL);";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
@@ -286,7 +286,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
 }
 
 
-void load_phenotype(sqlite3* db, const std::string& pheno_name){
+void load_phenotype(sqlite3* db, const std::string& pheno_name, const bool danger){
     std::ifstream pheno(pheno_name.c_str());
     if (!pheno.is_open()) {
         std::string error_message =
@@ -336,9 +336,10 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name){
         "INSERT INTO PHENOTYPE(SampleID, FieldID, Instance, Phenotype) "
         "VALUES(@S,@F,@I,@P)";
     sqlite3_prepare_v2(db, pheno_statement.c_str(), -1, &pheno_stat, nullptr);
-
-    sqlite3_exec(db, "PRAGMA synchronous = OFF", NULL, NULL, &zErrMsg);
-    sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", NULL, NULL, &zErrMsg);
+    if(danger){
+        sqlite3_exec(db, "PRAGMA synchronous = OFF", NULL, NULL, &zErrMsg);
+        sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", NULL, NULL, &zErrMsg);
+    }
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%", 0);
     while (std::getline(pheno, line)) {
@@ -395,24 +396,28 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name){
 }
 int main(int argc, char* argv[])
 {
-    static const char* optString = "d:c:p:o:rh?";
+    static const char* optString = "d:c:p:o:m:rdh?";
     static const struct option longOpts[] = {
         {"data", required_argument, nullptr, 'd'},
         {"code", required_argument, nullptr, 'c'},
         {"pheno", required_argument, nullptr, 'p'},
         {"out", required_argument, nullptr, 'o'},
-        {"replace", no_argument, nullptr, 'r'},
+    {"replace", no_argument, nullptr, 'r'},
+    {"memory", no_argument, nullptr, 'm'},
+    {"danger", no_argument, nullptr, 'D'},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
     int longIndex = 0;
     int opt = 0;
     opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
-    std::string data_showcase, code_showcase, pheno_name, out_name;
-    bool replace = false;
+    std::string data_showcase, code_showcase, pheno_name, out_name, memory="1024";
+    bool replace = false,danger=false;
     while (opt != -1) {
         switch (opt)
         {
         case 'd': data_showcase = optarg; break;
+        case 'm': memory=optarg; break;
+        case 'D': danger = true; break;
         case 'c': code_showcase = optarg; break;
         case 'p': pheno_name = optarg; break;
         case 'o': out_name = optarg; break;
@@ -469,10 +474,11 @@ int main(int argc, char* argv[])
     {
         std::cerr << "Opened database: " << db_name << std::endl;
     }
-    create_tables(db);
+
+    create_tables(db, memory);
     load_code(db, code_showcase);
     load_data(db, data_showcase);
-    load_phenotype(db, pheno_name);
+    load_phenotype(db, pheno_name, danger);
     sqlite3_close(db);
     return 0;
 }

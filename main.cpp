@@ -402,8 +402,8 @@ int main(int argc, char* argv[])
         {"code", required_argument, nullptr, 'c'},
         {"pheno", required_argument, nullptr, 'p'},
         {"out", required_argument, nullptr, 'o'},
+    {"memory", required_argument, nullptr, 'm'},
     {"replace", no_argument, nullptr, 'r'},
-    {"memory", no_argument, nullptr, 'm'},
     {"danger", no_argument, nullptr, 'D'},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};

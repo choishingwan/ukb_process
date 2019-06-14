@@ -352,7 +352,9 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
     }
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%", 0);
+    size_t count = 0,num_line=0;
     while (std::getline(pheno, line)) {
+
         misc::trim(line);
         if (line.empty()) continue;
         double cur_progress = (static_cast<double>(pheno.tellg())
@@ -378,6 +380,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                 + std::to_string(token.size()) + " column(s)\n";
             throw std::runtime_error(error_message);
         }
+        num_line++;
         for (size_t i = 0; i < num_pheno; ++i) {
             if (token[i] == "NA" || i == id_idx) continue;
             // sample ID
@@ -397,6 +400,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
             sqlite3_step(pheno_stat);
             sqlite3_clear_bindings(pheno_stat);
             sqlite3_reset(pheno_stat);
+            count++;
         }
     }
     pheno.close();
@@ -408,6 +412,11 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
         "CREATE INDEX 'PHENOTYPE_Index' ON 'PHENOTYPE' ('FieldID','Instance')",
         nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
+    size_t na = num_line*num_pheno-count;
+    std::cerr << "A total of " << count << " entries entered into database" << std::endl;
+    if(na){
+        std::cerr << "With " << na << " NA entries" << std::endl;
+    }
 }
 void usage(){
 

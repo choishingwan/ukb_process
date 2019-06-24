@@ -447,8 +447,7 @@ void usage(){
     fprintf(stderr, "                    server is unstable\n");
     fprintf(stderr, "    -m | --memory   Cache memory, default 1024byte\n");
     fprintf(stderr, "    -r | --replace  Replace existing ukb database file\n");
-    fprintf(stderr,
-            "       -h | --help        Display this help message\n\n\n");
+    fprintf(stderr, "    -h | --help     Display this help message\n\n\n");
 }
 int main(int argc, char* argv[])
 {

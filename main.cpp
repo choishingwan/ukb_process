@@ -414,7 +414,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
             */
 
             sql = "INSERT INTO f"+
-                    subtoken[1]+
+                    phenotype_meta[i].first+
                     "(SampleID, Instance, Pheno) "
                     "VALUES("+token[id_idx]+","+
                     phenotype_meta[i].second+","+

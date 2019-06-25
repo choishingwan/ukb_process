@@ -397,7 +397,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
             if(i==id_idx){
                 sqlite3_bind_text(insert_sample, 1, token[i].c_str(), -1,
                                   SQLITE_TRANSIENT);
-                sqlite3_bind_text(insert_sample, 2, (token[i].at(0)=='-')?"0":"1", -1,
+                sqlite3_bind_text(insert_sample, 2, (token[i].at(0)=='-')?"1":"0", -1,
                                   SQLITE_TRANSIENT);
                 sqlite3_step(insert_sample);
                 sqlite3_clear_bindings(insert_sample);

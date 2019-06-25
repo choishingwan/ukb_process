@@ -81,6 +81,7 @@ void create_tables(sqlite3* db, const std::string& memory)
           "Instances INT NOT NULL,"
           "Array INT NOT NULL,"
           "Coding INT,"
+          "Included BOOLEAN,"
           "FOREIGN KEY (Coding) REFERENCES CODE(ID));";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
     if (rc != SQLITE_OK) {
@@ -188,7 +189,7 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
 }
 
-void load_data(sqlite3* db, const std::string& data_showcase)
+void load_data(sqlite3* db, const std::unordered_set<std::string> &included_fields, const std::string& data_showcase)
 {
     std::ifstream data(data_showcase.c_str());
     if (!data.is_open()) {
@@ -217,9 +218,9 @@ void load_data(sqlite3* db, const std::string& data_showcase)
     std::string data_statement =
         "INSERT INTO DATA_META(Category, FieldID, Field, Participants, "
         "Items, Stability, ValueType, Units, ItemType, Strata, Sexed, "
-        "Instances, Array, Coding) "
+        "Instances, Array, Coding, Included) "
         "VALUES(@CATEGORY,@FIELDID,@FIELD,@PARTICIPANTS,@ITEM,@STABILITY,"
-        "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING)";
+        "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING, @INCLUDED)";
     sqlite3_prepare_v2(db, data_statement.c_str(), -1, &dat_stat, nullptr);
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
 
@@ -248,6 +249,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
                 + line;
             throw std::runtime_error(error_message);
         }
+        if(included_fields.find(token[3])==included_fields.end()) continue;
         for (size_t i = 1; i < 15; ++i) {
             // we skip the first one and last 2 as they are not as useful
             // can always retrieve those using data showcase
@@ -260,6 +262,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
             sqlite3_bind_text(dat_stat, static_cast<int>(i), token[i].c_str(),
                               -1, SQLITE_TRANSIENT);
         }
+        sqlite3_bind_text(dat_stat, 15,(included_fields.find(token[3])==included_fields.end())?"0":"1" ,2,SQLITE_TRANSIENT);
         sqlite3_step(dat_stat);
         sqlite3_clear_bindings(dat_stat);
         sqlite3_reset(dat_stat);
@@ -271,8 +274,7 @@ void load_data(sqlite3* db, const std::string& data_showcase)
                  nullptr, nullptr, &zErrMsg);
 }
 
-
-void load_phenotype(sqlite3* db, const std::string& pheno_name,
+void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const std::string& pheno_name,
                     const bool danger)
 {
     std::ifstream pheno(pheno_name.c_str());
@@ -345,7 +347,14 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                 sqlite3_stmt* cur_stat;
                 sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat, nullptr);
                 pheno_statements[subtoken[1]] = cur_stat;
-
+                if(fields.find(subtoken[1])!= fields.end()){
+                    // When we read the second phentype file, we found that
+                    // it was already read, so we should skip it an issue a
+                    // warning
+                    fprintf(stderr, "Warning: Duplicated Field ID (%s) detected in %s. We will ignore this instance\n", subtoken[1].c_str(), pheno_name.c_str());
+                }else{
+                    fields.insert(subtoken[1]);
+                }
             }
             phenotype_meta.emplace_back(
                 std::make_pair(subtoken[1], subtoken[2]));
@@ -578,9 +587,13 @@ int main(int argc, char* argv[])
     }
 
     create_tables(db, memory);
+    std::unordered_set<std::string> included_fields;
+    std::vector<std::string> pheno_names = misc::split(pheno_name);
+    for(auto && pheno: pheno_names){
+        load_phenotype(db, included_fields, pheno, danger);
+    }
+    load_data(db, included_fields, data_showcase);
     load_code(db, code_showcase);
-    load_data(db, data_showcase);
-    load_phenotype(db, pheno_name, danger);
     sqlite3_close(db);
     return 0;
 }

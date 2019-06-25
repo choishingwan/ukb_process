@@ -302,7 +302,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
     std::vector<std::string> token = misc::split(line, "\t");
     std::vector<std::string> subtoken;
     std::unordered_set<std::string> pheno_id;
-    //std::unordered_map<std::string, sqlite3_stmt*> pheno_statements;
+    std::unordered_map<std::string, sqlite3_stmt*> pheno_statements;
     int rc;
     for (size_t i = 0; i < token.size(); ++i) {
         if (token[i] == "f.eid" || token[i] == "\"f.eid\"") {
@@ -321,7 +321,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                 throw std::runtime_error(error_message);
             }
             if(pheno_id.find(subtoken[1])==pheno_id.end()){
-            /*if(pheno_statements.find(subtoken[1])==pheno_statements.end()){
+            //if(pheno_statements.find(subtoken[1])==pheno_statements.end()){
                 std::string cur_statement =
                     "INSERT INTO f"+subtoken[1]+"(SampleID, Instance, Pheno) "
                     "VALUES(@S,@I,@P)";
@@ -329,7 +329,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                 sqlite3_stmt* cur_stat;
                 sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat, nullptr);
                 pheno_statements[subtoken[1]] = cur_stat;
-                */
+                //*/
                 pheno_id.insert(subtoken[1]);
                 sql = "CREATE TABLE f"+subtoken[1]+"("
                       "SampleID INT NOT NULL,"
@@ -394,8 +394,12 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
         num_line++;
         for (size_t i = 0; i < num_pheno; ++i) {
             if (token[i] == "NA" || i == id_idx) continue;
-            /*auto &cur_stat = pheno_statements[phenotype_meta[i].first.c_str()];
+            auto &cur_stat = pheno_statements[phenotype_meta[i].first.c_str()];
             // sample ID
+            if(cur_stat == nullptr){
+                std::cerr << "Out of scope?" << std::endl;
+            }
+            /*
             sqlite3_bind_text(cur_stat, 1, token[id_idx].c_str(), -1,
                               SQLITE_TRANSIENT);
             // Instance

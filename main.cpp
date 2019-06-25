@@ -449,6 +449,16 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
             db,
             sql.c_str(),
             nullptr, nullptr, &zErrMsg);
+        sql = std::string("CREATE INDEX 'f"+pheno.first+"_Sample_Index' ON 'f"+pheno.first+"' ('SampleID')");
+        sqlite3_exec(
+            db,
+            sql.c_str(),
+            nullptr, nullptr, &zErrMsg);
+        sql = std::string("CREATE INDEX 'f"+pheno.first+"_excess_Index' ON 'f"+pheno.first+"' ('SampleID','Instance')");
+        sqlite3_exec(
+            db,
+            sql.c_str(),
+            nullptr, nullptr, &zErrMsg);
     }
     size_t na = num_line*num_pheno-count;
     std::cerr << "A total of " << count << " entries entered into database" << std::endl;

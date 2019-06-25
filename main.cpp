@@ -304,6 +304,11 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
     //std::unordered_set<std::string> pheno_id;
     std::unordered_map<std::string, sqlite3_stmt*> pheno_statements;
     int rc;
+    std::string insert_statement =
+        "INSERT INTO SAMPLE(ID, DropOut) "
+        "VALUES(@S,@I)";
+    sqlite3_stmt* insert_sample;
+    sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample, nullptr);
     for (size_t i = 0; i < token.size(); ++i) {
         if (token[i] == "f.eid" || token[i] == "\"f.eid\"") {
             phenotype_meta.emplace_back(std::make_pair("0", "0"));
@@ -337,7 +342,6 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                 std::string cur_statement =
                     "INSERT INTO f"+subtoken[1]+"(SampleID, Instance, Pheno) "
                     "VALUES(@S,@I,@P)";
-
                 sqlite3_stmt* cur_stat;
                 sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat, nullptr);
                 pheno_statements[subtoken[1]] = cur_stat;
@@ -389,7 +393,17 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
         }
         num_line++;
         for (size_t i = 0; i < num_pheno; ++i) {
-            if (token[i] == "NA" || i == id_idx) continue;
+            if (token[i] == "NA") continue;
+            if(i==id_idx){
+                sqlite3_bind_text(insert_sample, 1, token[i].c_str(), -1,
+                                  SQLITE_TRANSIENT);
+                sqlite3_bind_text(insert_sample, 2, (token[i].at(0)=='-')?"0":"1", -1,
+                                  SQLITE_TRANSIENT);
+                sqlite3_step(insert_sample);
+                sqlite3_clear_bindings(insert_sample);
+                sqlite3_reset(insert_sample);
+                continue;
+            }
             auto &cur_stat = pheno_statements[phenotype_meta[i].first.c_str()];
             // sample ID
             sqlite3_bind_text(cur_stat, 1, token[id_idx].c_str(), -1,

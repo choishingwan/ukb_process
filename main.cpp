@@ -322,13 +322,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
             }
             if(pheno_id.find(subtoken[1])==pheno_id.end()){
             //if(pheno_statements.find(subtoken[1])==pheno_statements.end()){
-                std::string cur_statement =
-                    "INSERT INTO f"+subtoken[1]+"(SampleID, Instance, Pheno) "
-                    "VALUES(@S,@I,@P)";
 
-                sqlite3_stmt* cur_stat;
-                sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat, nullptr);
-                pheno_statements[subtoken[1]] = cur_stat;
                 //*/
                 pheno_id.insert(subtoken[1]);
                 sql = "CREATE TABLE f"+subtoken[1]+"("
@@ -342,10 +336,14 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                     fprintf(stderr, "SQL error: %s\n", zErrMsg);
                     sqlite3_free(zErrMsg);
                 }
-                else
-                {
-                    //fprintf(stdout, "Table:PHENOTYPE created successfully\n");
-                }
+                std::string cur_statement =
+                    "INSERT INTO f"+subtoken[1]+"(SampleID, Instance, Pheno) "
+                    "VALUES(@S,@I,@P)";
+
+                sqlite3_stmt* cur_stat;
+                sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat, nullptr);
+                pheno_statements[subtoken[1]] = cur_stat;
+
             }
             phenotype_meta.emplace_back(
                 std::make_pair(subtoken[1], subtoken[2]));

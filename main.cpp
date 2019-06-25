@@ -439,16 +439,17 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
     // currently this should be the most useful index. Maybe add some more if
     // we can figure out their use case
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
+    fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
+    std::cerr << "Start building indexs" << std::endl;
     for(auto pheno : pheno_statements){
-    //for(auto pheno : pheno_id){
         sql = std::string("CREATE INDEX 'f"+pheno.first+"_Index' ON 'f"+pheno.first+"' ('Instance')");
+    //for(auto pheno : pheno_id){
         //sql = std::string("CREATE INDEX 'f"+pheno+"_Index' ON 'f"+pheno+"' ('Instance')");
         sqlite3_exec(
             db,
             sql.c_str(),
             nullptr, nullptr, &zErrMsg);
     }
-    fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
     size_t na = num_line*num_pheno-count;
     std::cerr << "A total of " << count << " entries entered into database" << std::endl;
     if(na){

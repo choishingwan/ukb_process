@@ -301,7 +301,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
     std::vector<pheno_info> phenotype_meta;
     std::vector<std::string> token = misc::split(line, "\t");
     std::vector<std::string> subtoken;
-    std::unordered_set<std::string> pheno_id;
+    //std::unordered_set<std::string> pheno_id;
     std::unordered_map<std::string, sqlite3_stmt*> pheno_statements;
     int rc;
     for (size_t i = 0; i < token.size(); ++i) {
@@ -320,11 +320,9 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                                             + token[i];
                 throw std::runtime_error(error_message);
             }
-            if(pheno_id.find(subtoken[1])==pheno_id.end()){
-            //if(pheno_statements.find(subtoken[1])==pheno_statements.end()){
-
-                //*/
-                pheno_id.insert(subtoken[1]);
+            //if(pheno_id.find(subtoken[1])==pheno_id.end()){
+            if(pheno_statements.find(subtoken[1])==pheno_statements.end()){
+                //pheno_id.insert(subtoken[1]);
                 sql = "CREATE TABLE f"+subtoken[1]+"("
                       "SampleID INT NOT NULL,"
                       "Instance INT NOT NULL,"
@@ -394,27 +392,20 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
             if (token[i] == "NA" || i == id_idx) continue;
             auto &cur_stat = pheno_statements[phenotype_meta[i].first.c_str()];
             // sample ID
-            if(cur_stat == nullptr){
-                std::cerr << "Out of scope?" << std::endl;
-            }
-            /*
             sqlite3_bind_text(cur_stat, 1, token[id_idx].c_str(), -1,
                               SQLITE_TRANSIENT);
             // Instance
             sqlite3_bind_text(cur_stat, 2, phenotype_meta[i].second.c_str(),
                               -1, SQLITE_TRANSIENT);
-                              */
             // phenotype
             if (token[i].front() != '\"') token[i] = "\"" + token[i];
             if (token[i].back() != '\"') token[i] = token[i] + "\"";
-            /*
             sqlite3_bind_text(cur_stat, 3, token[i].c_str(), -1,
                               SQLITE_TRANSIENT);
             sqlite3_step(cur_stat);
             sqlite3_clear_bindings(cur_stat);
             sqlite3_reset(cur_stat);
-            */
-
+            /*
             sql = "INSERT INTO f"+
                     phenotype_meta[i].first+
                     "(SampleID, Instance, Pheno) "
@@ -426,10 +417,7 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
                 fprintf(stderr, "SQL error: %s\n", zErrMsg);
                 sqlite3_free(zErrMsg);
             }
-            else
-            {
-                //fprintf(stdout, "Table:PHENOTYPE created successfully\n");
-            }
+            */
             count++;
         }
     }
@@ -437,10 +425,10 @@ void load_phenotype(sqlite3* db, const std::string& pheno_name,
     // currently this should be the most useful index. Maybe add some more if
     // we can figure out their use case
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
-    //for(auto pheno : pheno_statements){
-    for(auto pheno : pheno_id){
-        // sql = std::string("CREATE INDEX 'f"+pheno.first+"_Index' ON 'f"+pheno.first+"' ('Instance')");
-        sql = std::string("CREATE INDEX 'f"+pheno+"_Index' ON 'f"+pheno+"' ('Instance')");
+    for(auto pheno : pheno_statements){
+    //for(auto pheno : pheno_id){
+        sql = std::string("CREATE INDEX 'f"+pheno.first+"_Index' ON 'f"+pheno.first+"' ('Instance')");
+        //sql = std::string("CREATE INDEX 'f"+pheno+"_Index' ON 'f"+pheno+"' ('Instance')");
         sqlite3_exec(
             db,
             sql.c_str(),

@@ -382,7 +382,6 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
             }
         }
     }
-    std::cerr << "Total of " << fields.size() << "\t fields" << std::endl;
     return phenotype_meta;
 }
 
@@ -432,13 +431,20 @@ size_t get_phenotype_id(
     }
 }
 
-void update_pheno_db(sqlite3_stmt* insert_pheno, const std::string& sample_id,
-                     const std::string& pheno_id, const std::string& instance)
+void update_pheno_db(sqlite3* db, sqlite3_stmt* insert_pheno,
+                     const std::string& sample_id, const std::string& pheno_id,
+                     const std::string& instance)
 {
     sqlite3_bind_text(insert_pheno, 1, sample_id.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_pheno, 1, pheno_id.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_pheno, 1, instance.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(insert_pheno);
+    int status = sqlite3_step(insert_pheno);
+    if (status == SQLITE_ERROR || status == SQLITE_BUSY)
+    {
+        std::string errorMessage(sqlite3_errmsg(db));
+        throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("
+                                 + std::to_string(status) + ")");
+    }
     sqlite3_clear_bindings(insert_pheno);
     sqlite3_reset(insert_pheno);
 }
@@ -581,7 +587,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 size_t pheno_id =
                     get_phenotype_id(meta_insert, pheno_id_dict, pheno_meta_idx,
                                      phenotype_meta[i].first, token[i]);
-                update_pheno_db(pheno_insert, token[id_idx],
+                update_pheno_db(db, pheno_insert, token[id_idx],
                                 std::to_string(pheno_id),
                                 phenotype_meta[i].second);
                 ++counts;

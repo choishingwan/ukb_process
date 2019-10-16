@@ -333,6 +333,7 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
 {
     std::vector<std::string> subtoken;
     std::vector<pheno_info> phenotype_meta;
+    std::unordered_set<std::string> processed_field;
     std::string field_id, instance_num;
     for (size_t i = 0; i < token.size(); ++i)
     {
@@ -359,7 +360,8 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
             // if(pheno_id.find(subtoken[1])==pheno_id.end()){
             field_id = subtoken[1];
             instance_num = subtoken[2];
-            if (fields.find(field_id) != fields.end())
+            if (processed_field.find(field_id) == processed_field.end()
+                && fields.find(field_id) != fields.end())
             {
                 // When we read the second phentype file, we found that
                 // it was already read, so we should skip it an issue a
@@ -368,12 +370,14 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
                         "Warning: Duplicated Field ID (%s) detected in %s. "
                         "We will ignore this instance\n",
                         field_id.c_str(), pheno.c_str());
+                processed_field.insert(field_id);
             }
             else
             {
                 fields.insert(field_id);
+                phenotype_meta.emplace_back(
+                    std::make_pair(field_id, instance_num));
             }
-            phenotype_meta.emplace_back(std::make_pair(field_id, instance_num));
         }
     }
     return phenotype_meta;
@@ -536,7 +540,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
             get_pheno_meta(pheno, token, fields, id_idx);
         const size_t num_pheno = phenotype_meta.size();
         std::cerr << "Start processing phenotype file with " << num_pheno
-                  << " entries" << std::endl;
+                  << " entries (" << pheno << ")" << std::endl;
         double prev_percentage = 0;
         fprintf(stderr, "\rProcessing %03.2f%%", 0.00);
         while (std::getline(pheno_file, line))

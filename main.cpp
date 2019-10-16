@@ -369,14 +369,16 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
                 fprintf(stderr,
                         "Warning: Duplicated Field ID (%s) detected in %s. "
                         "We will ignore this instance\n",
-                        field_id.c_str(), pheno.c_str());
-                processed_field.insert(field_id);
+                        token[i].c_str(), pheno.c_str());
+                // use NA to indicate we want this to be ignored
+                phenotype_meta.emplace_back(std::make_pair("NA", instance_num));
             }
             else
             {
                 fields.insert(field_id);
                 phenotype_meta.emplace_back(
                     std::make_pair(field_id, instance_num));
+                processed_field.insert(field_id);
             }
         }
     }
@@ -565,9 +567,13 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                     ++na_entries;
                     continue;
                 }
-                if (i == id_idx)
+                else if (i == id_idx)
                 {
                     insert_sample_db(insert_sample, token[i]);
+                    continue;
+                }
+                else if (phenotype_meta[i].first == "NA")
+                {
                     continue;
                 }
                 // check meta

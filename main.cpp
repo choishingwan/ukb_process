@@ -493,7 +493,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
     sqlite3_stmt* insert_sample;
     sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample,
                        nullptr);
-    std::string insert_pheno = "INSERT INTO  PHENOTYPE"
+    std::string insert_pheno = "INSERT INTO PHENOTYPE"
                                "(ID, Instance, PhenoID) "
                                "VALUES(@S,@I,@P)";
     sqlite3_stmt* pheno_insert;
@@ -502,8 +502,8 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                                     "(ID, FieldID, Pheno) "
                                     "VALUES(@S,@I,@P)";
     sqlite3_stmt* meta_insert;
-    sqlite3_prepare_v2(db, insert_pheno.c_str(), -1, &meta_insert, nullptr);
-
+    sqlite3_prepare_v2(db, insert_pheno_meta.c_str(), -1, &meta_insert,
+                       nullptr);
     char* zErrMsg = nullptr;
     if (danger)
     {

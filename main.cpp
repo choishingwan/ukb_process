@@ -611,7 +611,7 @@ void usage()
 
     fprintf(stderr, " UK Biobank Phenotype Processing\n");
     fprintf(stderr, " Sam Choi\n");
-    fprintf(stderr, " v0.1.0 ( 2019-06-04 )\n");
+    fprintf(stderr, " v0.2.0 ( 2019-10-16 )\n");
     fprintf(stderr, " ==============================\n");
     fprintf(stderr, " This program will process the UK biobank Phenotype\n");
     fprintf(stderr, " information and generate a SQLite data base\n");

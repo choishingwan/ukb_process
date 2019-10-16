@@ -396,7 +396,8 @@ void update_pheno_meta_db(sqlite3* db, sqlite3_stmt* insert_pheno_meta,
     sqlite3_bind_text(insert_pheno_meta, 1, pheno.c_str(), -1,
                       SQLITE_TRANSIENT);
     int status = sqlite3_step(insert_pheno_meta);
-    if (status == SQLITE_ERROR || status == SQLITE_BUSY)
+    if (status != SQLITE_DONE || status == SQLITE_ERROR
+        || status == SQLITE_BUSY)
     {
         std::string errorMessage(sqlite3_errmsg(db));
         throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("
@@ -445,7 +446,8 @@ void update_pheno_db(sqlite3* db, sqlite3_stmt* insert_pheno,
     sqlite3_bind_text(insert_pheno, 1, pheno_id.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_pheno, 1, instance.c_str(), -1, SQLITE_TRANSIENT);
     int status = sqlite3_step(insert_pheno);
-    if (status == SQLITE_ERROR || status == SQLITE_BUSY)
+    if (status != SQLITE_DONE || status == SQLITE_ERROR
+        || status == SQLITE_BUSY)
     {
         std::string errorMessage(sqlite3_errmsg(db));
         throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("

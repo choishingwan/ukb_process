@@ -385,7 +385,7 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
     return phenotype_meta;
 }
 
-void update_pheno_meta_db(sqlite3_stmt* insert_pheno_meta,
+void update_pheno_meta_db(sqlite3* db, sqlite3_stmt* insert_pheno_meta,
                           const std::string& pheno_id,
                           const std::string& field_id, const std::string& pheno)
 {
@@ -395,12 +395,18 @@ void update_pheno_meta_db(sqlite3_stmt* insert_pheno_meta,
                       SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_pheno_meta, 1, pheno.c_str(), -1,
                       SQLITE_TRANSIENT);
-    sqlite3_step(insert_pheno_meta);
+    int status = sqlite3_step(insert_pheno_meta);
+    if (status == SQLITE_ERROR || status == SQLITE_BUSY)
+    {
+        std::string errorMessage(sqlite3_errmsg(db));
+        throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("
+                                 + std::to_string(status) + ")");
+    }
     sqlite3_clear_bindings(insert_pheno_meta);
     sqlite3_reset(insert_pheno_meta);
 }
 size_t get_phenotype_id(
-    sqlite3_stmt* insert_pheno_meta,
+    sqlite3* db, sqlite3_stmt* insert_pheno_meta,
     std::unordered_map<std::string, std::unordered_map<std::string, size_t>>&
         pheno_id,
     size_t& pheno_meta_idx, const std::string& field_id,
@@ -414,7 +420,7 @@ size_t get_phenotype_id(
         else
         {
             pheno_id[field_id][pheno] = pheno_meta_idx;
-            update_pheno_meta_db(insert_pheno_meta,
+            update_pheno_meta_db(db, insert_pheno_meta,
                                  std::to_string(pheno_meta_idx), field_id,
                                  pheno);
             ++pheno_meta_idx;
@@ -424,8 +430,8 @@ size_t get_phenotype_id(
     else
     {
         pheno_id[field_id][pheno] = pheno_meta_idx;
-        update_pheno_meta_db(insert_pheno_meta, std::to_string(pheno_meta_idx),
-                             field_id, pheno);
+        update_pheno_meta_db(db, insert_pheno_meta,
+                             std::to_string(pheno_meta_idx), field_id, pheno);
         ++pheno_meta_idx;
         return pheno_meta_idx - 1;
     }
@@ -493,17 +499,18 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
     sqlite3_stmt* insert_sample;
     sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample,
                        nullptr);
-    std::string insert_pheno = "INSERT INTO PHENOTYPE"
-                               "(ID, Instance, PhenoID) "
-                               "VALUES(@S,@I,@P)";
-    sqlite3_stmt* pheno_insert;
-    sqlite3_prepare_v2(db, insert_pheno.c_str(), -1, &pheno_insert, nullptr);
-    std::string insert_pheno_meta = "INSERT INTO  PHENO_META"
-                                    "(ID, FieldID, Pheno) "
-                                    "VALUES(@S,@I,@P)";
-    sqlite3_stmt* meta_insert;
-    sqlite3_prepare_v2(db, insert_pheno_meta.c_str(), -1, &meta_insert,
+    std::string insert_pheno_statement = "INSERT INTO PHENOTYPE"
+                                         "(ID, Instance, PhenoID) "
+                                         "VALUES(@S,@I,@P)";
+    sqlite3_stmt* insert_pheno;
+    sqlite3_prepare_v2(db, insert_pheno_statement.c_str(), -1, &insert_pheno,
                        nullptr);
+    std::string insert_pheno_meta_statement = "INSERT INTO  PHENO_META"
+                                              "(ID, FieldID, Pheno) "
+                                              "VALUES(@S,@I,@P)";
+    sqlite3_stmt* insert_meta;
+    sqlite3_prepare_v2(db, insert_pheno_meta_statement.c_str(), -1,
+                       &insert_meta, nullptr);
     char* zErrMsg = nullptr;
     if (danger)
     {
@@ -581,13 +588,14 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 }
                 else if (phenotype_meta[i].first == "NA")
                 {
+                    // skipped field
                     continue;
                 }
                 // check meta
-                size_t pheno_id =
-                    get_phenotype_id(meta_insert, pheno_id_dict, pheno_meta_idx,
-                                     phenotype_meta[i].first, token[i]);
-                update_pheno_db(db, pheno_insert, token[id_idx],
+                size_t pheno_id = get_phenotype_id(
+                    db, insert_meta, pheno_id_dict, pheno_meta_idx,
+                    phenotype_meta[i].first, token[i]);
+                update_pheno_db(db, insert_pheno, token[id_idx],
                                 std::to_string(pheno_id),
                                 phenotype_meta[i].second);
                 ++counts;

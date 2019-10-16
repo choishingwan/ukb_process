@@ -8,16 +8,15 @@
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 static int callback(void* /*NotUsed*/, int argc, char** argv, char** azColName)
 {
     int i;
-    for (i = 0; i < argc; i++) {
-        printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-    }
+    for (i = 0; i < argc; i++)
+    { printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL"); }
     printf("\n");
     return 0;
 }
@@ -32,7 +31,8 @@ void create_tables(sqlite3* db, const std::string& memory)
     sql = "CREATE TABLE CODE("
           "ID INT PRIMARY KEY NOT NULL);";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
+    {
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
@@ -46,7 +46,8 @@ void create_tables(sqlite3* db, const std::string& memory)
           "Meaning TEXT,"
           "FOREIGN KEY (ID) REFERENCES CODE(ID));";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
+    {
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
@@ -58,7 +59,8 @@ void create_tables(sqlite3* db, const std::string& memory)
           "ID INT PRIMARY KEY NOT NULL,"
           "DropOut BOOLEAN);";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
+    {
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
@@ -84,7 +86,8 @@ void create_tables(sqlite3* db, const std::string& memory)
           "Included BOOLEAN,"
           "FOREIGN KEY (Coding) REFERENCES CODE(ID));";
     rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK) {
+    if (rc != SQLITE_OK)
+    {
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
@@ -98,7 +101,8 @@ void create_tables(sqlite3* db, const std::string& memory)
 void load_code(sqlite3* db, const std::string& code_showcase)
 {
     std::ifstream code(code_showcase.c_str());
-    if (!code.is_open()) {
+    if (!code.is_open())
+    {
         std::string error_message =
             "Error: Cannot open code showcase file: " + code_showcase
             + ". Please check you have the correct input";
@@ -131,7 +135,8 @@ void load_code(sqlite3* db, const std::string& code_showcase)
                        nullptr);
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
 
-    while (std::getline(code, line)) {
+    while (std::getline(code, line))
+    {
         misc::trim(line);
         if (line.empty()) continue;
         double cur_progress = (static_cast<double>(code.tellg())
@@ -139,31 +144,32 @@ void load_code(sqlite3* db, const std::string& code_showcase)
                               * 100.0;
         // progress bar can be slow when permutation + thresholding is used due
         // to the huge amount of processing required
-        if (cur_progress - prev_percentage > 0.01) {
+        if (cur_progress - prev_percentage > 0.01)
+        {
             fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
             prev_percentage = cur_progress;
         }
 
-        if (prev_percentage >= 100.0) {
-            fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
-        }
+        if (prev_percentage >= 100.0)
+        { fprintf(stderr, "\rProcessing %03.2f%%", 100.0); }
         // CSV input
         token = misc::csv_split(line);
-        if (token.size() != 3) {
+        if (token.size() != 3)
+        {
             std::string error_message =
                 "Error: Undefined Code Showcase "
                 "format! File is expected to have exactly 3 columns.\n"
                 + line;
             throw std::runtime_error(error_message);
         }
-        for (size_t i = 3; i < token.size(); ++i) {
-            token[2] = token[2] + "," + token[i];
-        }
+        for (size_t i = 3; i < token.size(); ++i)
+        { token[2] = token[2] + "," + token[i]; }
         // clean up the string
         token[2].erase(std::remove(token[2].begin(), token[2].end(), '\"'),
                        token[2].end());
         token[2] = "\"" + token[2] + "\"";
-        if (id.find(token[0]) == id.end()) {
+        if (id.find(token[0]) == id.end())
+        {
             // ADD this into CODE table
             sqlite3_bind_text(code_stat, 0, token[0].c_str(), -1,
                               SQLITE_TRANSIENT);
@@ -189,10 +195,13 @@ void load_code(sqlite3* db, const std::string& code_showcase)
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
 }
 
-void load_data(sqlite3* db, const std::unordered_set<std::string> &included_fields, const std::string& data_showcase)
+void load_data(sqlite3* db,
+               const std::unordered_set<std::string>& included_fields,
+               const std::string& data_showcase)
 {
     std::ifstream data(data_showcase.c_str());
-    if (!data.is_open()) {
+    if (!data.is_open())
+    {
         std::string error_message =
             "Error: Cannot open data showcase file: " + data_showcase
             + ". Please check you have the correct input";
@@ -220,11 +229,13 @@ void load_data(sqlite3* db, const std::unordered_set<std::string> &included_fiel
         "Items, Stability, ValueType, Units, ItemType, Strata, Sexed, "
         "Instances, Array, Coding, Included) "
         "VALUES(@CATEGORY,@FIELDID,@FIELD,@PARTICIPANTS,@ITEM,@STABILITY,"
-        "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING, @INCLUDED)";
+        "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING, "
+        "@INCLUDED)";
     sqlite3_prepare_v2(db, data_statement.c_str(), -1, &dat_stat, nullptr);
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
 
-    while (std::getline(data, line)) {
+    while (std::getline(data, line))
+    {
         misc::trim(line);
         if (line.empty()) continue;
         double cur_progress = (static_cast<double>(data.tellg())
@@ -232,28 +243,31 @@ void load_data(sqlite3* db, const std::unordered_set<std::string> &included_fiel
                               * 100.0;
         // progress bar can be slow when permutation + thresholding is used due
         // to the huge amount of processing required
-        if (cur_progress - prev_percentage > 0.01) {
+        if (cur_progress - prev_percentage > 0.01)
+        {
             fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
             prev_percentage = cur_progress;
         }
 
-        if (prev_percentage >= 100.0) {
-            fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
-        }
+        if (prev_percentage >= 100.0)
+        { fprintf(stderr, "\rProcessing %03.2f%%", 100.0); }
         // CSV input
         token = misc::csv_split(line);
-        if (token.size() != 17) {
+        if (token.size() != 17)
+        {
             std::string error_message =
                 "Error: Undefined Data Showcase "
                 "format! File is expected to have exactly 17 columns.\n"
                 + line;
             throw std::runtime_error(error_message);
         }
-        if(included_fields.find(token[3])==included_fields.end()) continue;
-        for (size_t i = 1; i < 15; ++i) {
+        if (included_fields.find(token[3]) == included_fields.end()) continue;
+        for (size_t i = 1; i < 15; ++i)
+        {
             // we skip the first one and last 2 as they are not as useful
             // can always retrieve those using data showcase
-            if (i == 3 || (i >= 6 && i <= 11)) {
+            if (i == 3 || (i >= 6 && i <= 11))
+            {
                 token[i].erase(
                     std::remove(token[i].begin(), token[i].end(), '\"'),
                     token[i].end());
@@ -262,7 +276,11 @@ void load_data(sqlite3* db, const std::unordered_set<std::string> &included_fiel
             sqlite3_bind_text(dat_stat, static_cast<int>(i), token[i].c_str(),
                               -1, SQLITE_TRANSIENT);
         }
-        sqlite3_bind_text(dat_stat, 15,(included_fields.find(token[3])==included_fields.end())?"0":"1" ,2,SQLITE_TRANSIENT);
+        sqlite3_bind_text(
+            dat_stat, 15,
+            (included_fields.find(token[3]) == included_fields.end()) ? "0"
+                                                                      : "1",
+            2, SQLITE_TRANSIENT);
         sqlite3_step(dat_stat);
         sqlite3_clear_bindings(dat_stat);
         sqlite3_reset(dat_stat);
@@ -274,11 +292,12 @@ void load_data(sqlite3* db, const std::unordered_set<std::string> &included_fiel
                  nullptr, nullptr, &zErrMsg);
 }
 
-void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const std::string& pheno_name,
-                    const bool danger)
+void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
+                    const std::string& pheno_name, const bool danger)
 {
     std::ifstream pheno(pheno_name.c_str());
-    if (!pheno.is_open()) {
+    if (!pheno.is_open())
+    {
         std::string error_message =
             "Error: Cannot open phenotype file: " + pheno_name
             + ". Please check you have the correct input";
@@ -303,16 +322,18 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const 
     std::vector<pheno_info> phenotype_meta;
     std::vector<std::string> token = misc::split(line, "\t");
     std::vector<std::string> subtoken;
-    //std::unordered_set<std::string> pheno_id;
+    // std::unordered_set<std::string> pheno_id;
     std::unordered_map<std::string, sqlite3_stmt*> pheno_statements;
     int rc;
-    std::string insert_statement =
-        "INSERT INTO SAMPLE(ID, DropOut) "
-        "VALUES(@S,@I)";
+    std::string insert_statement = "INSERT INTO SAMPLE(ID, DropOut) "
+                                   "VALUES(@S,@I)";
     sqlite3_stmt* insert_sample;
-    sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample, nullptr);
-    for (size_t i = 0; i < token.size(); ++i) {
-        if (token[i] == "f.eid" || token[i] == "\"f.eid\"") {
+    sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample,
+                       nullptr);
+    for (size_t i = 0; i < token.size(); ++i)
+    {
+        if (token[i] == "f.eid" || token[i] == "\"f.eid\"")
+        {
             phenotype_meta.emplace_back(std::make_pair("0", "0"));
             id_idx = i;
         }
@@ -320,39 +341,50 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const 
         {
             // we don't care about the array index
             subtoken = misc::split(token[i], ".");
-            if (subtoken.size() != 4) {
+            if (subtoken.size() != 4)
+            {
                 std::string error_message = "Error: We expect all Field ID "
                                             "from the phenotype to have the "
                                             "following format: f.x.x.x: "
                                             + token[i];
                 throw std::runtime_error(error_message);
             }
-            //if(pheno_id.find(subtoken[1])==pheno_id.end()){
-            if(pheno_statements.find(subtoken[1])==pheno_statements.end()){
-                //pheno_id.insert(subtoken[1]);
-                sql = "CREATE TABLE f"+subtoken[1]+"("
-                      "SampleID INT NOT NULL,"
-                      "Instance INT NOT NULL,"
-                      "Pheno TEXT,"
-                      "FOREIGN KEY (SampleID) REFERENCES SAMPLE(ID)"
-                      ");";
+            // if(pheno_id.find(subtoken[1])==pheno_id.end()){
+            if (pheno_statements.find(subtoken[1]) == pheno_statements.end())
+            {
+                // pheno_id.insert(subtoken[1]);
+                sql = "CREATE TABLE f" + subtoken[1]
+                      + "("
+                        "SampleID INT NOT NULL,"
+                        "Instance INT NOT NULL,"
+                        "Pheno TEXT,"
+                        "FOREIGN KEY (SampleID) REFERENCES SAMPLE(ID)"
+                        ");";
                 rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-                if (rc != SQLITE_OK) {
+                if (rc != SQLITE_OK)
+                {
                     fprintf(stderr, "SQL error: %s\n", zErrMsg);
                     sqlite3_free(zErrMsg);
                 }
-                std::string cur_statement =
-                    "INSERT INTO f"+subtoken[1]+"(SampleID, Instance, Pheno) "
-                    "VALUES(@S,@I,@P)";
+                std::string cur_statement = "INSERT INTO f" + subtoken[1]
+                                            + "(SampleID, Instance, Pheno) "
+                                              "VALUES(@S,@I,@P)";
                 sqlite3_stmt* cur_stat;
-                sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat, nullptr);
+                sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat,
+                                   nullptr);
                 pheno_statements[subtoken[1]] = cur_stat;
-                if(fields.find(subtoken[1])!= fields.end()){
+                if (fields.find(subtoken[1]) != fields.end())
+                {
                     // When we read the second phentype file, we found that
                     // it was already read, so we should skip it an issue a
                     // warning
-                    fprintf(stderr, "Warning: Duplicated Field ID (%s) detected in %s. We will ignore this instance\n", subtoken[1].c_str(), pheno_name.c_str());
-                }else{
+                    fprintf(stderr,
+                            "Warning: Duplicated Field ID (%s) detected in %s. "
+                            "We will ignore this instance\n",
+                            subtoken[1].c_str(), pheno_name.c_str());
+                }
+                else
+                {
                     fields.insert(subtoken[1]);
                 }
             }
@@ -366,14 +398,18 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const 
 
 
     double prev_percentage = 0;
-    if (danger) {
-        sqlite3_exec(db, "PRAGMA synchronous = OFF", nullptr, nullptr, &zErrMsg);
-        sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", nullptr, nullptr, &zErrMsg);
+    if (danger)
+    {
+        sqlite3_exec(db, "PRAGMA synchronous = OFF", nullptr, nullptr,
+                     &zErrMsg);
+        sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", nullptr, nullptr,
+                     &zErrMsg);
     }
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%", 0.00);
-    size_t count = 0,num_line=0;
-    while (std::getline(pheno, line)) {
+    size_t count = 0, num_line = 0;
+    while (std::getline(pheno, line))
+    {
 
         misc::trim(line);
         if (line.empty()) continue;
@@ -382,17 +418,18 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const 
                               * 100.0;
         // progress bar can be slow when permutation + thresholding is used due
         // to the huge amount of processing required
-        if (cur_progress - prev_percentage > 0.01) {
+        if (cur_progress - prev_percentage > 0.01)
+        {
             fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
             prev_percentage = cur_progress;
         }
 
-        if (prev_percentage >= 100.0) {
-            fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
-        }
+        if (prev_percentage >= 100.0)
+        { fprintf(stderr, "\rProcessing %03.2f%%", 100.0); }
         // Tab Delim
         token = misc::split(line, "\t");
-        if (token.size() != num_pheno) {
+        if (token.size() != num_pheno)
+        {
             std::string error_message =
                 "Error: Undefined Phenotype file"
                 "format! File is expected to have exactly "
@@ -401,25 +438,28 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const 
             throw std::runtime_error(error_message);
         }
         num_line++;
-        for (size_t i = 0; i < num_pheno; ++i) {
+        for (size_t i = 0; i < num_pheno; ++i)
+        {
             if (token[i] == "NA") continue;
-            if(i==id_idx){
+            if (i == id_idx)
+            {
                 sqlite3_bind_text(insert_sample, 1, token[i].c_str(), -1,
                                   SQLITE_TRANSIENT);
-                sqlite3_bind_text(insert_sample, 2, (token[i].at(0)=='-')?"1":"0", -1,
+                sqlite3_bind_text(insert_sample, 2,
+                                  (token[i].at(0) == '-') ? "1" : "0", -1,
                                   SQLITE_TRANSIENT);
                 sqlite3_step(insert_sample);
                 sqlite3_clear_bindings(insert_sample);
                 sqlite3_reset(insert_sample);
                 continue;
             }
-            auto &cur_stat = pheno_statements[phenotype_meta[i].first.c_str()];
+            auto& cur_stat = pheno_statements[phenotype_meta[i].first.c_str()];
             // sample ID
             sqlite3_bind_text(cur_stat, 1, token[id_idx].c_str(), -1,
                               SQLITE_TRANSIENT);
             // Instance
-            sqlite3_bind_text(cur_stat, 2, phenotype_meta[i].second.c_str(),
-                              -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(cur_stat, 2, phenotype_meta[i].second.c_str(), -1,
+                              SQLITE_TRANSIENT);
             // phenotype
             if (token[i].front() != '\"') token[i] = "\"" + token[i];
             if (token[i].back() != '\"') token[i] = token[i] + "\"";
@@ -450,32 +490,30 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string> &fields, const 
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
     std::cerr << "Start building indexs" << std::endl;
-    for(auto pheno : pheno_statements){
-        sql = std::string("CREATE INDEX 'f"+pheno.first+"_Index' ON 'f"+pheno.first+"' ('Instance')");
-    //for(auto pheno : pheno_id){
-        //sql = std::string("CREATE INDEX 'f"+pheno+"_Index' ON 'f"+pheno+"' ('Instance')");
-        sqlite3_exec(
-            db,
-            sql.c_str(),
-            nullptr, nullptr, &zErrMsg);
-        sql = std::string("CREATE INDEX 'f"+pheno.first+"_Sample_Index' ON 'f"+pheno.first+"' ('SampleID')");
-        sqlite3_exec(
-            db,
-            sql.c_str(),
-            nullptr, nullptr, &zErrMsg);
-        sql = std::string("CREATE INDEX 'f"+pheno.first+"_excess_Index' ON 'f"+pheno.first+"' ('SampleID','Instance')");
-        sqlite3_exec(
-            db,
-            sql.c_str(),
-            nullptr, nullptr, &zErrMsg);
+    for (auto pheno : pheno_statements)
+    {
+        sql = std::string("CREATE INDEX 'f" + pheno.first + "_Index' ON 'f"
+                          + pheno.first + "' ('Instance')");
+        // for(auto pheno : pheno_id){
+        // sql = std::string("CREATE INDEX 'f"+pheno+"_Index' ON 'f"+pheno+"'
+        // ('Instance')");
+        sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+        sql =
+            std::string("CREATE INDEX 'f" + pheno.first + "_Sample_Index' ON 'f"
+                        + pheno.first + "' ('SampleID')");
+        sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+        sql =
+            std::string("CREATE INDEX 'f" + pheno.first + "_excess_Index' ON 'f"
+                        + pheno.first + "' ('SampleID','Instance')");
+        sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
     }
-    size_t na = num_line*num_pheno-count;
-    std::cerr << "A total of " << count << " entries entered into database" << std::endl;
-    if(na){
-        std::cerr << "With " << na << " NA entries" << std::endl;
-    }
+    size_t na = num_line * num_pheno - count;
+    std::cerr << "A total of " << count << " entries entered into database"
+              << std::endl;
+    if (na) { std::cerr << "With " << na << " NA entries" << std::endl; }
 }
-void usage(){
+void usage()
+{
 
     fprintf(stderr, " UK Biobank Phenotype Processing\n");
     fprintf(stderr, " Sam Choi\n");
@@ -483,16 +521,27 @@ void usage(){
     fprintf(stderr, " ==============================\n");
     fprintf(stderr, " This program will process the UK biobank Phenotype\n");
     fprintf(stderr, " information and generate a SQLite data base\n");
-    fprintf(stderr, " Usage: ukb_process -d <Data showcase> -c <Code showcase> \\\n");
+    fprintf(stderr,
+            " Usage: ukb_process -d <Data showcase> -c <Code showcase> \\\n");
     fprintf(stderr, "                    -p <Phenotype> -o <Output>\n");
-    fprintf(stderr, "    -d | --data     Data showcase file. Can be found here:\n");
-    fprintf(stderr, "                    http://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv\n");
-    fprintf(stderr, "    -c | --code     Data coding information. Can be found here:\n");
-    fprintf(stderr, "                    http://biobank.ndph.ox.ac.uk/~bbdatan/Codings_Showcase.csv\n");
+    fprintf(stderr,
+            "    -d | --data     Data showcase file. Can be found here:\n");
+    fprintf(
+        stderr,
+        "                    "
+        "http://biobank.ndph.ox.ac.uk/~bbdatan/Data_Dictionary_Showcase.csv\n");
+    fprintf(
+        stderr,
+        "    -c | --code     Data coding information. Can be found here:\n");
+    fprintf(stderr,
+            "                    "
+            "http://biobank.ndph.ox.ac.uk/~bbdatan/Codings_Showcase.csv\n");
     fprintf(stderr, "    -p | --pheno    UK Biobank Phenotype file\n");
     fprintf(stderr, "    -o | --out      Name of the generated database\n");
-    fprintf(stderr, "    -D | --danger   Enable optioned that speed up processing\n");
-    fprintf(stderr, "                    May generate corrupted database file if\n");
+    fprintf(stderr,
+            "    -D | --danger   Enable optioned that speed up processing\n");
+    fprintf(stderr,
+            "                    May generate corrupted database file if\n");
     fprintf(stderr, "                    server is unstable\n");
     fprintf(stderr, "    -m | --memory   Cache memory, default 1024byte\n");
     fprintf(stderr, "    -r | --replace  Replace existing ukb database file\n");
@@ -500,7 +549,8 @@ void usage(){
 }
 int main(int argc, char* argv[])
 {
-    if(argc < 2){
+    if (argc < 2)
+    {
         usage();
         return -1;
     }
@@ -521,7 +571,8 @@ int main(int argc, char* argv[])
     std::string data_showcase, code_showcase, pheno_name, out_name,
         memory = "1024";
     bool replace = false, danger = false;
-    while (opt != -1) {
+    while (opt != -1)
+    {
         switch (opt)
         {
         case 'd': data_showcase = optarg; break;
@@ -532,9 +583,7 @@ int main(int argc, char* argv[])
         case 'o': out_name = optarg; break;
         case 'r': replace = true; break;
         case 'h':
-        case '?':
-            usage();
-            return 0;
+        case '?': usage(); return 0;
         default:
             throw "Undefined operator, please use --help for more "
                   "information!";
@@ -542,34 +591,41 @@ int main(int argc, char* argv[])
         opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
     }
     bool error = false;
-    if (data_showcase.empty()) {
+    if (data_showcase.empty())
+    {
         error = true;
         std::cerr << "Error: You must provide the data showcase csv file!"
                   << std::endl;
     }
-    if (code_showcase.empty()) {
+    if (code_showcase.empty())
+    {
         error = true;
         std::cerr << "Error: You must provide the code showcase csv file!"
                   << std::endl;
     }
-    if (pheno_name.empty()) {
+    if (pheno_name.empty())
+    {
         error = true;
         std::cerr << "Error: You must provide the phenotype!" << std::endl;
     }
-    if (out_name.empty()) {
+    if (out_name.empty())
+    {
         error = true;
         std::cerr << "Error: You must provide output prefix!" << std::endl;
     }
-    if (error) {
+    if (error)
+    {
         std::cerr << "Please check you have all the required input!"
                   << std::endl;
         return -1;
     }
     std::string db_name = out_name + ".db";
     sqlite3* db;
-    if (misc::file_exists(db_name)) {
+    if (misc::file_exists(db_name))
+    {
         // emit warning and delete file
-        if (!replace) {
+        if (!replace)
+        {
             std::cerr << "Error: Database file exists: " + db_name << std::endl;
             std::cerr << "       Use --replace to replace it" << std::endl;
             return -1;
@@ -577,7 +633,8 @@ int main(int argc, char* argv[])
         std::remove(db_name.c_str());
     }
     int rc = sqlite3_open(db_name.c_str(), &db);
-    if (rc) {
+    if (rc)
+    {
         std::cerr << "Cannot open database: " << db_name << std::endl;
         return -1;
     }
@@ -588,10 +645,9 @@ int main(int argc, char* argv[])
 
     create_tables(db, memory);
     std::unordered_set<std::string> included_fields;
-    std::vector<std::string> pheno_names = misc::split(pheno_name);
-    for(auto && pheno: pheno_names){
-        load_phenotype(db, included_fields, pheno, danger);
-    }
+    std::vector<std::string> pheno_names = misc::split(pheno_name, ",");
+    for (auto&& pheno : pheno_names)
+    { load_phenotype(db, included_fields, pheno, danger); }
     load_data(db, included_fields, data_showcase);
     load_code(db, code_showcase);
     sqlite3_close(db);

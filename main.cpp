@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
+typedef std::pair<std::string, std::string> pheno_info;
 static int callback(void* /*NotUsed*/, int argc, char** argv, char** azColName)
 {
     int i;
@@ -94,6 +95,39 @@ void create_tables(sqlite3* db, const std::string& memory)
     else
     {
         fprintf(stdout, "Table:DATA_META created successfully\n");
+    }
+
+    sql = "CREATE TABLE PHENO_META("
+          "ID INT PRIMARY KEY NOT NULL,"
+          "FieldID INT NOT NULL,"
+          "Pheno TEXT NOT NULL,"
+          "FOREIGN KEY (FieldID) REFERENCES DATA_META(FieldID));";
+    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
+    }
+    else
+    {
+        fprintf(stdout, "Table:PHENO_META created successfully\n");
+    }
+
+    sql = "CREATE TABLE PHENOTYPE("
+          "ID INT NOT NULL,"
+          "Instance INT NOT NULL,"
+          "PhenoID INT NOT NULL,"
+          "FOREIGN KEY (ID) REFERENCES SAMPLE(ID),"
+          "FOREIGN KEY (PhenoID) REFERENCES PHENO_META(ID));";
+    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
+    }
+    else
+    {
+        fprintf(stdout, "Table:PHENOTYPE created successfully\n");
     }
 }
 
@@ -292,47 +326,21 @@ void load_data(sqlite3* db,
                  nullptr, nullptr, &zErrMsg);
 }
 
-void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
-                    const std::string& pheno_name, const bool danger)
+std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
+                                       std::vector<std::string>& token,
+                                       std::unordered_set<std::string>& fields,
+                                       size_t& id_idx)
 {
-    std::ifstream pheno(pheno_name.c_str());
-    if (!pheno.is_open())
-    {
-        std::string error_message =
-            "Error: Cannot open phenotype file: " + pheno_name
-            + ". Please check you have the correct input";
-        throw std::runtime_error(error_message);
-    }
-    std::string line;
-    std::string sql;
-    char* zErrMsg = nullptr;
-    // there is a header
-    pheno.seekg(0, pheno.end);
-    auto file_length = pheno.tellg();
-    pheno.clear();
-    pheno.seekg(0, pheno.beg);
-    std::getline(pheno, line);
-    std::cerr << std::endl
-              << "============================================================"
-              << std::endl;
-    // process the header
-    // should be the Field ID and Instance number
-    typedef std::pair<std::string, std::string> pheno_info;
-    size_t id_idx = 0;
-    std::vector<pheno_info> phenotype_meta;
-    std::vector<std::string> token = misc::split(line, "\t");
     std::vector<std::string> subtoken;
-    // std::unordered_set<std::string> pheno_id;
-    std::unordered_map<std::string, sqlite3_stmt*> pheno_statements;
-    int rc;
-    std::string insert_statement = "INSERT INTO SAMPLE(ID, DropOut) "
-                                   "VALUES(@S,@I)";
-    sqlite3_stmt* insert_sample;
-    sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample,
-                       nullptr);
+    std::vector<pheno_info> phenotype_meta;
+    std::string field_id, instance_num;
     for (size_t i = 0; i < token.size(); ++i)
     {
-        if (token[i] == "f.eid" || token[i] == "\"f.eid\"")
+
+        // remove "
+        token[i].erase(std::remove(token[i].begin(), token[i].end(), '\"'),
+                       token[i].end());
+        if (token[i] == "f.eid")
         {
             phenotype_meta.emplace_back(std::make_pair("0", "0"));
             id_idx = i;
@@ -343,61 +351,147 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
             subtoken = misc::split(token[i], ".");
             if (subtoken.size() != 4)
             {
-                std::string error_message = "Error: We expect all Field ID "
-                                            "from the phenotype to have the "
-                                            "following format: f.x.x.x: "
-                                            + token[i];
-                throw std::runtime_error(error_message);
+                throw std::runtime_error("Error: We expect all Field ID "
+                                         "from the phenotype to have the "
+                                         "following format: f.x.x.x: "
+                                         + token[i]);
             }
             // if(pheno_id.find(subtoken[1])==pheno_id.end()){
-            if (pheno_statements.find(subtoken[1]) == pheno_statements.end())
+            field_id = subtoken[1];
+            instance_num = subtoken[2];
+            if (fields.find(subtoken[1]) != fields.end())
             {
-                // pheno_id.insert(subtoken[1]);
-                sql = "CREATE TABLE f" + subtoken[1]
-                      + "("
-                        "SampleID INT NOT NULL,"
-                        "Instance INT NOT NULL,"
-                        "Pheno TEXT,"
-                        "FOREIGN KEY (SampleID) REFERENCES SAMPLE(ID)"
-                        ");";
-                rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-                if (rc != SQLITE_OK)
-                {
-                    fprintf(stderr, "SQL error: %s\n", zErrMsg);
-                    sqlite3_free(zErrMsg);
-                }
-                std::string cur_statement = "INSERT INTO f" + subtoken[1]
-                                            + "(SampleID, Instance, Pheno) "
-                                              "VALUES(@S,@I,@P)";
-                sqlite3_stmt* cur_stat;
-                sqlite3_prepare_v2(db, cur_statement.c_str(), -1, &cur_stat,
-                                   nullptr);
-                pheno_statements[subtoken[1]] = cur_stat;
-                if (fields.find(subtoken[1]) != fields.end())
-                {
-                    // When we read the second phentype file, we found that
-                    // it was already read, so we should skip it an issue a
-                    // warning
-                    fprintf(stderr,
-                            "Warning: Duplicated Field ID (%s) detected in %s. "
-                            "We will ignore this instance\n",
-                            subtoken[1].c_str(), pheno_name.c_str());
-                }
-                else
-                {
-                    fields.insert(subtoken[1]);
-                }
+                // When we read the second phentype file, we found that
+                // it was already read, so we should skip it an issue a
+                // warning
+                fprintf(stderr,
+                        "Warning: Duplicated Field ID (%s) detected in %s. "
+                        "We will ignore this instance\n",
+                        subtoken[1].c_str(), pheno.c_str());
             }
-            phenotype_meta.emplace_back(
-                std::make_pair(subtoken[1], subtoken[2]));
+            else
+            {
+                fields.insert(subtoken[1]);
+            }
+        }
+        phenotype_meta.emplace_back(std::make_pair(subtoken[1], subtoken[2]));
+    }
+    return phenotype_meta;
+}
+
+void update_pheno_meta_db(sqlite3_stmt* insert_pheno_meta,
+                          const std::string& pheno_id,
+                          const std::string& field_id, const std::string& pheno)
+{
+    sqlite3_bind_text(insert_pheno_meta, 1, pheno_id.c_str(), -1,
+                      SQLITE_TRANSIENT);
+    sqlite3_bind_text(insert_pheno_meta, 1, field_id.c_str(), -1,
+                      SQLITE_TRANSIENT);
+    sqlite3_bind_text(insert_pheno_meta, 1, pheno.c_str(), -1,
+                      SQLITE_TRANSIENT);
+    sqlite3_step(insert_pheno_meta);
+    sqlite3_clear_bindings(insert_pheno_meta);
+    sqlite3_reset(insert_pheno_meta);
+}
+size_t get_phenotype_id(
+    sqlite3_stmt* insert_pheno_meta,
+    std::unordered_map<std::string, std::unordered_map<std::string, size_t>>&
+        pheno_id,
+    size_t& pheno_meta_idx, const std::string& field_id,
+    const std::string& pheno)
+{
+    auto&& field_loc = pheno_id.find(field_id);
+    if (field_loc != pheno_id.end())
+    {
+        auto&& pheno_loc = field_loc->second.find(pheno);
+        if (pheno_loc != field_loc->second.end()) { return pheno_loc->second; }
+        else
+        {
+            pheno_id[field_id][pheno] = pheno_meta_idx;
+            update_pheno_meta_db(insert_pheno_meta,
+                                 std::to_string(pheno_meta_idx), field_id,
+                                 pheno);
+            ++pheno_meta_idx;
+            return pheno_meta_idx - 1;
         }
     }
-    const size_t num_pheno = phenotype_meta.size();
-    std::cerr << "Start processing phenotype file with " << num_pheno
-              << " entries" << std::endl;
+    else
+    {
+        pheno_id[field_id][pheno] = pheno_meta_idx;
+        update_pheno_meta_db(insert_pheno_meta, std::to_string(pheno_meta_idx),
+                             field_id, pheno);
+        ++pheno_meta_idx;
+        return pheno_meta_idx - 1;
+    }
+}
 
+void update_pheno_db(sqlite3_stmt* insert_pheno, const std::string& sample_id,
+                     const std::string& pheno_id, const std::string& instance)
+{
+    sqlite3_bind_text(insert_pheno, 1, sample_id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(insert_pheno, 1, pheno_id.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(insert_pheno, 1, instance.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_step(insert_pheno);
+    sqlite3_clear_bindings(insert_pheno);
+    sqlite3_reset(insert_pheno);
+}
 
-    double prev_percentage = 0;
+void print_progress(signed long long cur_loc, signed long long length,
+                    double& prev_percentage)
+{
+    double cur_progress =
+        (static_cast<double>(cur_loc) / static_cast<double>(length)) * 100.0;
+    if (cur_progress - prev_percentage > 0.01)
+    {
+        fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
+        prev_percentage = cur_progress;
+    }
+    else if (prev_percentage >= 100.0)
+    {
+        fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
+    }
+}
+
+void insert_sample_db(sqlite3_stmt* insert_sample, const std::string& sample_id)
+{
+    sqlite3_bind_text(insert_sample, 1, sample_id.c_str(), -1,
+                      SQLITE_TRANSIENT);
+    sqlite3_bind_text(insert_sample, 2, (sample_id.at(0) == '-') ? "1" : "0",
+                      -1, SQLITE_TRANSIENT);
+    sqlite3_step(insert_sample);
+    sqlite3_clear_bindings(insert_sample);
+    sqlite3_reset(insert_sample);
+}
+
+signed long long get_file_length(std::ifstream& pheno_file)
+{
+    pheno_file.seekg(0, pheno_file.end);
+    signed long long file_length = pheno_file.tellg();
+    pheno_file.clear();
+    pheno_file.seekg(0, pheno_file.beg);
+    return file_length;
+}
+void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
+                    const std::vector<std::string> pheno_names,
+                    const bool danger)
+{
+    std::string insert_statement = "INSERT INTO SAMPLE(ID, DropOut) "
+                                   "VALUES(@S,@I)";
+    sqlite3_stmt* insert_sample;
+    sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample,
+                       nullptr);
+    std::string insert_pheno = "INSERT INTO  PHENOTYPE"
+                               "(ID, Instance, PhenoID) "
+                               "VALUES(@S,@I,@P)";
+    sqlite3_stmt* pheno_insert;
+    sqlite3_prepare_v2(db, insert_pheno.c_str(), -1, &pheno_insert, nullptr);
+    std::string insert_pheno_meta = "INSERT INTO  PHENO_META"
+                                    "(ID, FieldID, Pheno) "
+                                    "VALUES(@S,@I,@P)";
+    sqlite3_stmt* meta_insert;
+    sqlite3_prepare_v2(db, insert_pheno.c_str(), -1, &meta_insert, nullptr);
+
+    char* zErrMsg = nullptr;
     if (danger)
     {
         sqlite3_exec(db, "PRAGMA synchronous = OFF", nullptr, nullptr,
@@ -405,113 +499,113 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
         sqlite3_exec(db, "PRAGMA journal_mode = MEMORY", nullptr, nullptr,
                      &zErrMsg);
     }
+
+
+    std::unordered_map<std::string, std::unordered_map<std::string, size_t>>
+        pheno_id_dict;
+    size_t pheno_meta_idx = 0;
+    unsigned long long na_entries = 0;
+    unsigned long long counts = 0;
+    std::string field_id, instance_num;
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
-    fprintf(stderr, "\rProcessing %03.2f%%", 0.00);
-    size_t count = 0, num_line = 0;
-    while (std::getline(pheno, line))
+    for (auto&& pheno : pheno_names)
     {
-
-        misc::trim(line);
-        if (line.empty()) continue;
-        double cur_progress = (static_cast<double>(pheno.tellg())
-                               / static_cast<double>(file_length))
-                              * 100.0;
-        // progress bar can be slow when permutation + thresholding is used due
-        // to the huge amount of processing required
-        if (cur_progress - prev_percentage > 0.01)
+        std::ifstream pheno_file(pheno.c_str());
+        if (!pheno_file.is_open())
         {
-            fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
-            prev_percentage = cur_progress;
+            throw std::runtime_error(
+                "Error: Cannot open phenotype file: " + pheno
+                + ". Please check you have the correct input");
         }
-
-        if (prev_percentage >= 100.0)
-        { fprintf(stderr, "\rProcessing %03.2f%%", 100.0); }
-        // Tab Delim
-        token = misc::split(line, "\t");
-        if (token.size() != num_pheno)
+        std::string line;
+        std::string sql;
+        // there is a header
+        const signed long long file_length = get_file_length(pheno_file);
+        std::cerr
+            << std::endl
+            << "============================================================"
+            << std::endl;
+        // process the header
+        // should be the Field ID and Instance number
+        size_t id_idx = 0;
+        // pheno meta let us know for this column, what's the Field ID and
+        // what's the instance
+        std::getline(pheno_file, line);
+        std::vector<std::string> token = misc::split(line, "\t");
+        std::vector<pheno_info> phenotype_meta =
+            get_pheno_meta(pheno, token, fields, id_idx);
+        const size_t num_pheno = phenotype_meta.size();
+        std::cerr << "Start processing phenotype file with " << num_pheno
+                  << " entries" << std::endl;
+        double prev_percentage = 0;
+        fprintf(stderr, "\rProcessing %03.2f%%", 0.00);
+        while (std::getline(pheno_file, line))
         {
-            std::string error_message =
-                "Error: Undefined Phenotype file"
-                "format! File is expected to have exactly "
-                + misc::to_string(num_pheno) + " columns. Line has :"
-                + std::to_string(token.size()) + " column(s)\n";
-            throw std::runtime_error(error_message);
-        }
-        num_line++;
-        for (size_t i = 0; i < num_pheno; ++i)
-        {
-            if (token[i] == "NA") continue;
-            if (i == id_idx)
+            misc::trim(line);
+            if (line.empty()) continue;
+            print_progress(pheno_file.tellg(), file_length, prev_percentage);
+            // Tab Delim
+            token = misc::split(line, "\t");
+            if (token.size() != num_pheno)
             {
-                sqlite3_bind_text(insert_sample, 1, token[i].c_str(), -1,
-                                  SQLITE_TRANSIENT);
-                sqlite3_bind_text(insert_sample, 2,
-                                  (token[i].at(0) == '-') ? "1" : "0", -1,
-                                  SQLITE_TRANSIENT);
-                sqlite3_step(insert_sample);
-                sqlite3_clear_bindings(insert_sample);
-                sqlite3_reset(insert_sample);
-                continue;
+                throw std::runtime_error(
+                    "Error: Undefined Phenotype file"
+                    "format! File is expected to have exactly "
+                    + misc::to_string(num_pheno) + " columns. Line has :"
+                    + std::to_string(token.size()) + " column(s)\n");
             }
-            auto& cur_stat = pheno_statements[phenotype_meta[i].first.c_str()];
-            // sample ID
-            sqlite3_bind_text(cur_stat, 1, token[id_idx].c_str(), -1,
-                              SQLITE_TRANSIENT);
-            // Instance
-            sqlite3_bind_text(cur_stat, 2, phenotype_meta[i].second.c_str(), -1,
-                              SQLITE_TRANSIENT);
-            // phenotype
-            if (token[i].front() != '\"') token[i] = "\"" + token[i];
-            if (token[i].back() != '\"') token[i] = token[i] + "\"";
-            sqlite3_bind_text(cur_stat, 3, token[i].c_str(), -1,
-                              SQLITE_TRANSIENT);
-            sqlite3_step(cur_stat);
-            sqlite3_clear_bindings(cur_stat);
-            sqlite3_reset(cur_stat);
-            /*
-            sql = "INSERT INTO f"+
-                    phenotype_meta[i].first+
-                    "(SampleID, Instance, Pheno) "
-                    "VALUES("+token[id_idx]+","+
-                    phenotype_meta[i].second+","+
-                    token[i]+");";
-            rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-            if (rc != SQLITE_OK) {
-                fprintf(stderr, "SQL error: %s\n", zErrMsg);
-                sqlite3_free(zErrMsg);
+            for (size_t i = 0; i < num_pheno; ++i)
+            {
+                if (token[i] == "NA")
+                {
+                    ++na_entries;
+                    continue;
+                }
+                if (i == id_idx)
+                {
+                    insert_sample_db(insert_sample, token[i]);
+                    continue;
+                }
+                // check meta
+                size_t pheno_id =
+                    get_phenotype_id(meta_insert, pheno_id_dict, pheno_meta_idx,
+                                     phenotype_meta[i].first, token[i]);
+                update_pheno_db(pheno_insert, token[id_idx],
+                                std::to_string(pheno_id),
+                                phenotype_meta[i].second);
+                ++counts;
             }
-            */
-            count++;
         }
+        pheno_file.close();
     }
-    pheno.close();
-    // currently this should be the most useful index. Maybe add some more if
-    // we can figure out their use case
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
     std::cerr << "Start building indexs" << std::endl;
-    for (auto pheno : pheno_statements)
-    {
-        sql = std::string("CREATE INDEX 'f" + pheno.first + "_Index' ON 'f"
-                          + pheno.first + "' ('Instance')");
-        // for(auto pheno : pheno_id){
-        // sql = std::string("CREATE INDEX 'f"+pheno+"_Index' ON 'f"+pheno+"'
-        // ('Instance')");
-        sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-        sql =
-            std::string("CREATE INDEX 'f" + pheno.first + "_Sample_Index' ON 'f"
-                        + pheno.first + "' ('SampleID')");
-        sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-        sql =
-            std::string("CREATE INDEX 'f" + pheno.first + "_excess_Index' ON 'f"
-                        + pheno.first + "' ('SampleID','Instance')");
-        sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-    }
-    size_t na = num_line * num_pheno - count;
-    std::cerr << "A total of " << count << " entries entered into database"
+    std::string sql = "CREATE INDEX 'PHENOTYPE_INDEX' ON 'PHENOTYPE'  ('ID')";
+    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+    sql = "CREATE INDEX 'PHENOTYPE_INSTANCE_INDEX' ON 'PHENOTYPE'  "
+          "('Instance', 'PhenoID')";
+    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+    sql = "CREATE INDEX 'PHENOTYPE_FULL_INDEX' ON 'PHENOTYPE'  "
+          "('Instance', 'PhenoID', 'ID')";
+    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+    sql = "CREATE INDEX 'PHENOTYPE_NO_INSTANCE_INDEX' ON 'PHENOTYPE'  "
+          "('PhenoID', 'ID')";
+    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+    sql = "CREATE INDEX 'PHENOTYPE_META_INDEX' ON 'PHENO_META'  "
+          " ('FieldID', 'ID')";
+    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+    sql = "CREATE INDEX 'PHENOTYPE_META_LITE_INDEX' ON 'PHENO_META'  "
+          " ('FieldID')";
+    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
+
+    std::cerr << "A total of " << counts << " entries entered into database"
               << std::endl;
-    if (na) { std::cerr << "With " << na << " NA entries" << std::endl; }
+    if (na_entries)
+    { std::cerr << "With " << na_entries << " NA entries" << std::endl; }
 }
+
+
 void usage()
 {
 
@@ -646,8 +740,7 @@ int main(int argc, char* argv[])
     create_tables(db, memory);
     std::unordered_set<std::string> included_fields;
     std::vector<std::string> pheno_names = misc::split(pheno_name, ",");
-    for (auto&& pheno : pheno_names)
-    { load_phenotype(db, included_fields, pheno, danger); }
+    load_phenotype(db, included_fields, pheno_names, danger);
     load_data(db, included_fields, data_showcase);
     load_code(db, code_showcase);
     sqlite3_close(db);

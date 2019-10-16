@@ -382,6 +382,7 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
             }
         }
     }
+    std::cerr << "Total of " << fields.size() << "\t fields" << std::endl;
     return phenotype_meta;
 }
 

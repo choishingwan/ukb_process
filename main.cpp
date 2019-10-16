@@ -359,7 +359,7 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
             // if(pheno_id.find(subtoken[1])==pheno_id.end()){
             field_id = subtoken[1];
             instance_num = subtoken[2];
-            if (fields.find(subtoken[1]) != fields.end())
+            if (fields.find(field_id) != fields.end())
             {
                 // When we read the second phentype file, we found that
                 // it was already read, so we should skip it an issue a
@@ -367,14 +367,14 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
                 fprintf(stderr,
                         "Warning: Duplicated Field ID (%s) detected in %s. "
                         "We will ignore this instance\n",
-                        subtoken[1].c_str(), pheno.c_str());
+                        field_id.c_str(), pheno.c_str());
             }
             else
             {
-                fields.insert(subtoken[1]);
+                fields.insert(field_id);
             }
+            phenotype_meta.emplace_back(std::make_pair(field_id, instance_num));
         }
-        phenotype_meta.emplace_back(std::make_pair(subtoken[1], subtoken[2]));
     }
     return phenotype_meta;
 }

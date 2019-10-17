@@ -448,7 +448,7 @@ size_t get_phenotype_id(
             update_pheno_meta_db(db, insert_pheno_meta,
                                  std::to_string(pheno_meta_idx), field_id,
                                  pheno);
-            if (field_id == "21003")
+            if (field_id == "42039")
                 std::cerr << "Add pheno: " << pheno_meta_idx << "\t" << pheno
                           << std::endl;
             ++pheno_meta_idx;
@@ -640,8 +640,9 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 {
                     std::cerr << "Inserting: " << token[id_idx] << "\t"
                               << pheno_id << "\t" << phenotype_meta[i].second
-                              << std::endl;
+                              << "\t" << token[i] << std::endl;
                 }
+                if (counts == 10) exit(0);
                 update_pheno_db(db, insert_pheno, token[id_idx],
                                 std::to_string(pheno_id),
                                 phenotype_meta[i].second);

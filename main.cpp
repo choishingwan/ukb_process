@@ -620,7 +620,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                          && processed_sample.find(token[i])
                                 == processed_sample.end())
                 {
-                    processed_sample.insert(tokne[i]);
+                    processed_sample.insert(token[i]);
                     insert_sample_db(db, insert_sample, token[i]);
                     continue;
                 }
@@ -640,7 +640,6 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 ++counts;
             }
         }
-        first = false;
         pheno_file.close();
     }
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);

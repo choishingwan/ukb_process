@@ -205,7 +205,7 @@ void load_code(sqlite3* db, const std::string& code_showcase)
         if (id.find(token[0]) == id.end())
         {
             // ADD this into CODE table
-            sqlite3_bind_text(code_stat, 0, token[0].c_str(), -1,
+            sqlite3_bind_text(code_stat, 1, token[0].c_str(), -1,
                               SQLITE_TRANSIENT);
             int status = sqlite3_step(code_stat);
             if (status != SQLITE_DONE || status == SQLITE_ERROR

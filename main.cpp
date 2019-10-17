@@ -494,7 +494,8 @@ void print_progress(signed long long cur_loc, signed long long length,
     }
 }
 
-void insert_sample_db(sqlite3_stmt* insert_sample, const std::string& sample_id)
+void insert_sample_db(sqlite3* db, sqlite3_stmt* insert_sample,
+                      const std::string& sample_id)
 {
     sqlite3_bind_text(insert_sample, 1, sample_id.c_str(), -1,
                       SQLITE_TRANSIENT);
@@ -613,7 +614,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 }
                 else if (i == id_idx)
                 {
-                    insert_sample_db(insert_sample, token[i]);
+                    insert_sample_db(db, insert_sample, token[i]);
                     continue;
                 }
                 else if (phenotype_meta[i].first == "NA")

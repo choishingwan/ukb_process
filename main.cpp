@@ -472,6 +472,8 @@ void update_pheno_db(sqlite3* db, sqlite3_stmt* insert_pheno,
                      const std::string& sample_id, const std::string& pheno_id,
                      const std::string& instance)
 {
+    std::cerr << "Pheno ID binding: " << sample_id << "\t" << pheno_id << "\t"
+              << instance << std::endl;
     sqlite3_bind_text(insert_pheno, 1, sample_id.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_pheno, 2, pheno_id.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_pheno, 3, instance.c_str(), -1, SQLITE_TRANSIENT);

@@ -642,13 +642,14 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                               << pheno_id << "\t" << phenotype_meta[i].second
                               << "\t" << token[i] << std::endl;
                 }
-                if (counts == 10) exit(0);
+                if (counts == 10) goto DEBUG;
                 update_pheno_db(db, insert_pheno, token[id_idx],
                                 std::to_string(pheno_id),
                                 phenotype_meta[i].second);
                 ++counts;
             }
         }
+    DEBUG:;
         first = false;
         pheno_file.close();
     }

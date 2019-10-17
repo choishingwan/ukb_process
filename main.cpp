@@ -207,7 +207,14 @@ void load_code(sqlite3* db, const std::string& code_showcase)
             // ADD this into CODE table
             sqlite3_bind_text(code_stat, 0, token[0].c_str(), -1,
                               SQLITE_TRANSIENT);
-            sqlite3_step(code_stat);
+            int status = sqlite3_step(code_stat);
+            if (status != SQLITE_DONE || status == SQLITE_ERROR
+                || status == SQLITE_BUSY)
+            {
+                std::string errorMessage(sqlite3_errmsg(db));
+                throw std::runtime_error("Error: Insert failed: " + errorMessage
+                                         + " (" + std::to_string(status) + ")");
+            }
             sqlite3_clear_bindings(code_stat);
             sqlite3_reset(code_stat);
             id.insert(token[0]);
@@ -218,7 +225,14 @@ void load_code(sqlite3* db, const std::string& code_showcase)
                           SQLITE_TRANSIENT);
         sqlite3_bind_text(code_meta_stat, 3, token[2].c_str(), -1,
                           SQLITE_TRANSIENT);
-        sqlite3_step(code_meta_stat);
+        int status = sqlite3_step(code_meta_stat);
+        if (status != SQLITE_DONE || status == SQLITE_ERROR
+            || status == SQLITE_BUSY)
+        {
+            std::string errorMessage(sqlite3_errmsg(db));
+            throw std::runtime_error("Error: Insert failed: " + errorMessage
+                                     + " (" + std::to_string(status) + ")");
+        }
         sqlite3_clear_bindings(code_meta_stat);
         sqlite3_reset(code_meta_stat);
     }
@@ -315,7 +329,14 @@ void load_data(sqlite3* db,
             (included_fields.find(token[3]) == included_fields.end()) ? "0"
                                                                       : "1",
             2, SQLITE_TRANSIENT);
-        sqlite3_step(dat_stat);
+        int status = sqlite3_step(dat_stat);
+        if (status != SQLITE_DONE || status == SQLITE_ERROR
+            || status == SQLITE_BUSY)
+        {
+            std::string errorMessage(sqlite3_errmsg(db));
+            throw std::runtime_error("Error: Insert failed: " + errorMessage
+                                     + " (" + std::to_string(status) + ")");
+        }
         sqlite3_clear_bindings(dat_stat);
         sqlite3_reset(dat_stat);
     }
@@ -479,7 +500,14 @@ void insert_sample_db(sqlite3_stmt* insert_sample, const std::string& sample_id)
                       SQLITE_TRANSIENT);
     sqlite3_bind_text(insert_sample, 2, (sample_id.at(0) == '-') ? "1" : "0",
                       -1, SQLITE_TRANSIENT);
-    sqlite3_step(insert_sample);
+    int status = sqlite3_step(insert_sample);
+    if (status != SQLITE_DONE || status == SQLITE_ERROR
+        || status == SQLITE_BUSY)
+    {
+        std::string errorMessage(sqlite3_errmsg(db));
+        throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("
+                                 + std::to_string(status) + ")");
+    }
     sqlite3_clear_bindings(insert_sample);
     sqlite3_reset(insert_sample);
 }

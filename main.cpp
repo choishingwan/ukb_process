@@ -247,7 +247,7 @@ void load_data(sqlite3* db,
                const std::unordered_set<std::string>& included_fields,
                const std::string& data_showcase)
 {
-    std::cerr << "Total " << included_fields.size() << " to be included"
+    std::cerr << "Total " << included_fields.size() << " fields to be included"
               << std::endl;
     std::ifstream data(data_showcase.c_str());
     if (!data.is_open())
@@ -311,9 +311,8 @@ void load_data(sqlite3* db,
                 + line;
             throw std::runtime_error(error_message);
         }
-        if (included_fields.find(token[3]) == included_fields.end())
+        if (included_fields.find(token[2]) == included_fields.end())
         { continue; }
-        std::cerr << token[3] << " found" << std::endl;
         for (size_t i = 1; i < 15; ++i)
         {
             // we skip the first one and last 2 as they are not as useful
@@ -330,7 +329,7 @@ void load_data(sqlite3* db,
         }
         sqlite3_bind_text(
             dat_stat, 15,
-            (included_fields.find(token[3]) == included_fields.end()) ? "0"
+            (included_fields.find(token[2]) == included_fields.end()) ? "0"
                                                                       : "1",
             2, SQLITE_TRANSIENT);
         int status = sqlite3_step(dat_stat);

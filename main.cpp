@@ -448,9 +448,6 @@ size_t get_phenotype_id(
             update_pheno_meta_db(db, insert_pheno_meta,
                                  std::to_string(pheno_meta_idx), field_id,
                                  pheno);
-            if (field_id == "42039")
-                std::cerr << "Add pheno: " << pheno_meta_idx << "\t" << pheno
-                          << std::endl;
             ++pheno_meta_idx;
             return pheno_meta_idx - 1;
         }
@@ -460,9 +457,6 @@ size_t get_phenotype_id(
         pheno_id[field_id][pheno] = pheno_meta_idx;
         update_pheno_meta_db(db, insert_pheno_meta,
                              std::to_string(pheno_meta_idx), field_id, pheno);
-        if (field_id == "42039")
-            std::cerr << "Add pheno: " << pheno_meta_idx << "\t" << pheno
-                      << std::endl;
         ++pheno_meta_idx;
         return pheno_meta_idx - 1;
     }
@@ -472,11 +466,9 @@ void update_pheno_db(sqlite3* db, sqlite3_stmt* insert_pheno,
                      const std::string& sample_id, const std::string& pheno_id,
                      const std::string& instance)
 {
-    std::cerr << "Pheno ID binding: " << sample_id << "\t" << pheno_id << "\t"
-              << instance << std::endl;
     sqlite3_bind_text(insert_pheno, 1, sample_id.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(insert_pheno, 2, pheno_id.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(insert_pheno, 3, instance.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(insert_pheno, 2, instance.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(insert_pheno, 3, pheno_id.c_str(), -1, SQLITE_TRANSIENT);
     int status = sqlite3_step(insert_pheno);
     if (status != SQLITE_DONE || status == SQLITE_ERROR
         || status == SQLITE_BUSY)
@@ -565,7 +557,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
 
     std::unordered_map<std::string, std::unordered_map<std::string, size_t>>
         pheno_id_dict;
-    bool first = true;
+    std::unordered_set<std::string> processed_sample;
     size_t pheno_meta_idx = 0;
     unsigned long long na_entries = 0;
     unsigned long long counts = 0;
@@ -624,8 +616,11 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                     ++na_entries;
                     continue;
                 }
-                else if (i == id_idx && first)
+                else if (i == id_idx
+                         && processed_sample.find(token[i])
+                                == processed_sample.end())
                 {
+                    processed_sample.insert(tokne[i]);
                     insert_sample_db(db, insert_sample, token[i]);
                     continue;
                 }
@@ -638,20 +633,13 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 size_t pheno_id = get_phenotype_id(
                     db, insert_meta, pheno_id_dict, pheno_meta_idx,
                     phenotype_meta[i].first, token[i]);
-                if (phenotype_meta[i].first == "42039")
-                {
-                    std::cerr << "Inserting: " << token[id_idx] << "\t"
-                              << pheno_id << "\t" << phenotype_meta[i].second
-                              << "\t" << token[i] << std::endl;
-                }
-                if (counts == 10) goto DEBUG;
+
                 update_pheno_db(db, insert_pheno, token[id_idx],
                                 std::to_string(pheno_id),
                                 phenotype_meta[i].second);
                 ++counts;
             }
         }
-    DEBUG:;
         first = false;
         pheno_file.close();
     }

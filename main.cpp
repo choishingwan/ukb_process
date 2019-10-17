@@ -563,6 +563,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
 
     std::unordered_map<std::string, std::unordered_map<std::string, size_t>>
         pheno_id_dict;
+    bool first = true;
     size_t pheno_meta_idx = 0;
     unsigned long long na_entries = 0;
     unsigned long long counts = 0;
@@ -621,7 +622,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                     ++na_entries;
                     continue;
                 }
-                else if (i == id_idx)
+                else if (i == id_idx && first)
                 {
                     insert_sample_db(db, insert_sample, token[i]);
                     continue;
@@ -647,6 +648,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 ++counts;
             }
         }
+        first = false;
         pheno_file.close();
     }
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);

@@ -1,4 +1,5 @@
 #include "misc.hpp"
+#include "sql.h"
 #include <algorithm>
 #include <cstdlib>
 #include <fstream>
@@ -13,233 +14,102 @@
 #include <vector>
 
 typedef std::pair<std::string, std::string> pheno_info;
-static int callback(void* /*NotUsed*/, int argc, char** argv, char** azColName)
+
+void print_progress(signed long long cur_loc, signed long long length,
+                    double& prev_percentage)
 {
-    int i;
-    for (i = 0; i < argc; i++)
-    { printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL"); }
-    printf("\n");
-    return 0;
-}
-
-void create_tables(sqlite3* db, const std::string& memory)
-{
-    int rc;
-    char* zErrMsg = nullptr;
-    std::string sql;
-    sqlite3_exec(db, std::string("PRAGMA cache_size = " + memory).c_str(),
-                 nullptr, nullptr, &zErrMsg);
-    sql = "CREATE TABLE CODE("
-          "ID INT PRIMARY KEY NOT NULL);";
-    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK)
+    double cur_progress =
+        (static_cast<double>(cur_loc) / static_cast<double>(length)) * 100.0;
+    if (cur_progress - prev_percentage > 0.01)
     {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
+        fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
+        prev_percentage = cur_progress;
     }
-    else
+    else if (prev_percentage >= 100.0)
     {
-        fprintf(stdout, "Table:CODE created successfully\n");
-    }
-    sql = "CREATE TABLE CODE_META("
-          "ID INT,"
-          "Value INT NOT NULL,"
-          "Meaning TEXT,"
-          "FOREIGN KEY (ID) REFERENCES CODE(ID));";
-    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK)
-    {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
-    }
-    else
-    {
-        fprintf(stdout, "Table:CODE_META created successfully\n");
-    }
-    sql = "CREATE TABLE SAMPLE("
-          "ID INT PRIMARY KEY NOT NULL,"
-          "DropOut BOOLEAN);";
-    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK)
-    {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
-    }
-    else
-    {
-        fprintf(stdout, "Table:SAMPLE created successfully\n");
-    }
-    sql = "CREATE TABLE DATA_META("
-          "Category INT NOT NULL,"
-          "FieldID INT PRIMARY KEY NOT NULL,"
-          "Field TEXT NOT NULL,"
-          "Participants INT NOT NULL,"
-          "Items INT NOT NULL,"
-          "Stability TEXT NOT NULL,"
-          "ValueType TEXT NOT NULL,"
-          "Units TEXT, "
-          "ItemType TEXT,"
-          "Strata TEXT,"
-          "Sexed TEXT,"
-          "Instances INT NOT NULL,"
-          "Array INT NOT NULL,"
-          "Coding INT,"
-          "Included BOOLEAN,"
-          "FOREIGN KEY (Coding) REFERENCES CODE(ID));";
-    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK)
-    {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
-    }
-    else
-    {
-        fprintf(stdout, "Table:DATA_META created successfully\n");
-    }
-
-    sql = "CREATE TABLE PHENO_META("
-          "ID INT PRIMARY KEY NOT NULL,"
-          "FieldID INT NOT NULL,"
-          "Pheno TEXT NOT NULL,"
-          "FOREIGN KEY (FieldID) REFERENCES DATA_META(FieldID));";
-    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK)
-    {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
-    }
-    else
-    {
-        fprintf(stdout, "Table:PHENO_META created successfully\n");
-    }
-
-    sql = "CREATE TABLE PHENOTYPE("
-          "ID INT NOT NULL,"
-          "Instance INT NOT NULL,"
-          "PhenoID INT NOT NULL,"
-          "FOREIGN KEY (ID) REFERENCES SAMPLE(ID),"
-          "FOREIGN KEY (PhenoID) REFERENCES PHENO_META(ID));";
-    rc = sqlite3_exec(db, sql.c_str(), callback, nullptr, &zErrMsg);
-    if (rc != SQLITE_OK)
-    {
-        fprintf(stderr, "SQL error: %s\n", zErrMsg);
-        sqlite3_free(zErrMsg);
-    }
-    else
-    {
-        fprintf(stdout, "Table:PHENOTYPE created successfully\n");
+        fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
     }
 }
 
+signed long long get_file_length(std::ifstream& pheno_file)
+{
+    pheno_file.seekg(0, pheno_file.end);
+    signed long long file_length = pheno_file.tellg();
+    pheno_file.clear();
+    pheno_file.seekg(0, pheno_file.beg);
+    return file_length;
+}
 
 void load_code(sqlite3* db, const std::string& code_showcase)
 {
     std::ifstream code(code_showcase.c_str());
     if (!code.is_open())
     {
-        std::string error_message =
-            "Error: Cannot open code showcase file: " + code_showcase
-            + ". Please check you have the correct input";
-        throw std::runtime_error(error_message);
+        throw std::runtime_error("Error: Cannot open code showcase file: "
+                                 + code_showcase
+                                 + ". Please check you have the correct input");
     }
     std::string line;
-    std::string sql;
-    char* zErrMsg = nullptr;
     // there is a header
-    code.seekg(0, code.end);
-    auto file_length = code.tellg();
-    code.clear();
-    code.seekg(0, code.beg);
-    std::getline(code, line);
+    auto&& file_length = get_file_length(code);
     std::cerr << std::endl
               << "============================================================"
               << std::endl;
     std::cerr << "Header line of code showcase: " << std::endl;
+    std::getline(code, line);
     std::cerr << line << std::endl;
     double prev_percentage = 0;
     std::vector<std::string> token;
     std::unordered_set<std::string> id;
-    sqlite3_stmt* code_stat;
-    sqlite3_stmt* code_meta_stat;
-    std::string code_statement = "INSERT INTO CODE(ID) VALUES(@ID)";
-    std::string code_meta_statement =
-        "INSERT INTO CODE_META(ID, Value, Meaning) VALUES(@ID,@V, @M)";
-    sqlite3_prepare_v2(db, code_statement.c_str(), -1, &code_stat, nullptr);
-    sqlite3_prepare_v2(db, code_meta_statement.c_str(), -1, &code_meta_stat,
-                       nullptr);
+    SQL code_table("CODE", db);
+    SQL code_meta("CODE_META", db);
+    code_table.create_table("CREATE TABLE CODE("
+                            "ID INT PRIMARY KEY NOT NULL);");
+    code_meta.create_table("CREATE TABLE CODE_META("
+                           "ID INT,"
+                           "Value INT NOT NULL,"
+                           "Meaning TEXT,"
+                           "FOREIGN KEY (ID) REFERENCES CODE(ID));");
+    code_table.prep_statement("INSERT INTO CODE(ID) VALUES(@ID)");
+    code_meta.prep_statement(
+        "INSERT INTO CODE_META(ID, Value, Meaning) VALUES(@ID,@V, @M)");
+    char* zErrMsg = nullptr;
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
-
     while (std::getline(code, line))
     {
         misc::trim(line);
         if (line.empty()) continue;
-        double cur_progress = (static_cast<double>(code.tellg())
-                               / static_cast<double>(file_length))
-                              * 100.0;
-        // progress bar can be slow when permutation + thresholding is used due
-        // to the huge amount of processing required
-        if (cur_progress - prev_percentage > 0.01)
-        {
-            fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
-            prev_percentage = cur_progress;
-        }
-
-        if (prev_percentage >= 100.0)
-        { fprintf(stderr, "\rProcessing %03.2f%%", 100.0); }
+        print_progress(code.tellg(), file_length, prev_percentage);
         // CSV input
         token = misc::csv_split(line);
         if (token.size() != 3)
         {
-            std::string error_message =
+            throw std::runtime_error(
                 "Error: Undefined Code Showcase "
                 "format! File is expected to have exactly 3 columns.\n"
-                + line;
-            throw std::runtime_error(error_message);
+                + line);
         }
+        // some fields got comma in it, need to handle it
         for (size_t i = 3; i < token.size(); ++i)
         { token[2] = token[2] + "," + token[i]; }
-        // clean up the string
+        // clean up the string, remove all redundent "
         token[2].erase(std::remove(token[2].begin(), token[2].end(), '\"'),
                        token[2].end());
+        // add the " back as a protection
         token[2] = "\"" + token[2] + "\"";
         if (id.find(token[0]) == id.end())
         {
             // ADD this into CODE table
-            sqlite3_bind_text(code_stat, 1, token[0].c_str(), -1,
-                              SQLITE_TRANSIENT);
-            int status = sqlite3_step(code_stat);
-            if (status != SQLITE_DONE || status == SQLITE_ERROR
-                || status == SQLITE_BUSY)
-            {
-                std::string errorMessage(sqlite3_errmsg(db));
-                throw std::runtime_error("Error: Insert failed: " + errorMessage
-                                         + " (" + std::to_string(status) + ")");
-            }
-            sqlite3_clear_bindings(code_stat);
-            sqlite3_reset(code_stat);
+            code_table.run_statement(std::vector<std::string> {token[0]});
             id.insert(token[0]);
         }
-        sqlite3_bind_text(code_meta_stat, 1, token[0].c_str(), -1,
-                          SQLITE_TRANSIENT);
-        sqlite3_bind_text(code_meta_stat, 2, token[1].c_str(), -1,
-                          SQLITE_TRANSIENT);
-        sqlite3_bind_text(code_meta_stat, 3, token[2].c_str(), -1,
-                          SQLITE_TRANSIENT);
-        int status = sqlite3_step(code_meta_stat);
-        if (status != SQLITE_DONE || status == SQLITE_ERROR
-            || status == SQLITE_BUSY)
-        {
-            std::string errorMessage(sqlite3_errmsg(db));
-            throw std::runtime_error("Error: Insert failed: " + errorMessage
-                                     + " (" + std::to_string(status) + ")");
-        }
-        sqlite3_clear_bindings(code_meta_stat);
-        sqlite3_reset(code_meta_stat);
+        code_meta.run_statement(token);
     }
     code.close();
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
-    sqlite3_exec(db, "CREATE INDEX 'CODE_META_Index' ON 'CODE_META' ('ID')",
-                 nullptr, nullptr, &zErrMsg);
+    code_meta.create_index("CODE_META_VALUE_INDEX",
+                           std::vector<std::string> {"ID", "Value"});
+    code_meta.create_index("CODE_META_INDEX", std::vector<std::string> {"ID"});
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
 }
 
@@ -252,67 +122,63 @@ void load_data(sqlite3* db,
     std::ifstream data(data_showcase.c_str());
     if (!data.is_open())
     {
-        std::string error_message =
-            "Error: Cannot open data showcase file: " + data_showcase
-            + ". Please check you have the correct input";
-        throw std::runtime_error(error_message);
+        throw std::runtime_error("Error: Cannot open data showcase file: "
+                                 + data_showcase
+                                 + ". Please check you have the correct input");
     }
     std::string line;
-    std::string sql;
-    char* zErrMsg = nullptr;
     // there is a header
-    data.seekg(0, data.end);
-    auto file_length = data.tellg();
-    data.clear();
-    data.seekg(0, data.beg);
-    std::getline(data, line);
+    auto&& file_length = get_file_length(data);
     std::cerr << std::endl
               << "============================================================"
               << std::endl;
     std::cerr << "Header line of data showcase: " << std::endl;
+    std::getline(data, line);
     std::cerr << line << std::endl;
     double prev_percentage = 0;
     std::vector<std::string> token;
-    sqlite3_stmt* dat_stat;
-    std::string data_statement =
+    SQL data_meta("DATA_META", db);
+    data_meta.create_table("CREATE TABLE DATA_META("
+                           "Category INT NOT NULL,"
+                           "FieldID INT PRIMARY KEY NOT NULL,"
+                           "Field TEXT NOT NULL,"
+                           "Participants INT NOT NULL,"
+                           "Items INT NOT NULL,"
+                           "Stability TEXT NOT NULL,"
+                           "ValueType TEXT NOT NULL,"
+                           "Units TEXT, "
+                           "ItemType TEXT,"
+                           "Strata TEXT,"
+                           "Sexed TEXT,"
+                           "Instances INT NOT NULL,"
+                           "Array INT NOT NULL,"
+                           "Coding INT,"
+                           "Included BOOLEAN,"
+                           "FOREIGN KEY (Coding) REFERENCES CODE(ID));");
+    data_meta.prep_statement(
         "INSERT INTO DATA_META(Category, FieldID, Field, Participants, "
         "Items, Stability, ValueType, Units, ItemType, Strata, Sexed, "
         "Instances, Array, Coding, Included) "
         "VALUES(@CATEGORY,@FIELDID,@FIELD,@PARTICIPANTS,@ITEM,@STABILITY,"
         "@VALUETYPE,@UNITS,@ITEMTYPE,@STRATA,@SEXED,@INSTANCES,@ARRAY,@CODING, "
-        "@INCLUDED)";
-    sqlite3_prepare_v2(db, data_statement.c_str(), -1, &dat_stat, nullptr);
+        "@INCLUDED)");
+    char* zErrMsg = nullptr;
     sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
 
     while (std::getline(data, line))
     {
         misc::trim(line);
         if (line.empty()) continue;
-        double cur_progress = (static_cast<double>(data.tellg())
-                               / static_cast<double>(file_length))
-                              * 100.0;
-        // progress bar can be slow when permutation + thresholding is used due
-        // to the huge amount of processing required
-        if (cur_progress - prev_percentage > 0.01)
-        {
-            fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
-            prev_percentage = cur_progress;
-        }
-
-        if (prev_percentage >= 100.0)
-        { fprintf(stderr, "\rProcessing %03.2f%%", 100.0); }
+        print_progress(data.tellg(), file_length, prev_percentage);
         // CSV input
         token = misc::csv_split(line);
         if (token.size() != 17)
         {
-            std::string error_message =
+            throw std::runtime_error(
                 "Error: Undefined Data Showcase "
                 "format! File is expected to have exactly 17 columns.\n"
-                + line;
-            throw std::runtime_error(error_message);
+                + line);
         }
-        if (included_fields.find(token[2]) == included_fields.end())
-        { continue; }
         for (size_t i = 1; i < 15; ++i)
         {
             // we skip the first one and last 2 as they are not as useful
@@ -324,30 +190,16 @@ void load_data(sqlite3* db,
                     token[i].end());
                 if (token[i] != "NULL") token[i] = "\"" + token[i] + "\"";
             }
-            sqlite3_bind_text(dat_stat, static_cast<int>(i), token[i].c_str(),
-                              -1, SQLITE_TRANSIENT);
         }
-        sqlite3_bind_text(
-            dat_stat, 15,
-            (included_fields.find(token[2]) == included_fields.end()) ? "0"
-                                                                      : "1",
-            2, SQLITE_TRANSIENT);
-        int status = sqlite3_step(dat_stat);
-        if (status != SQLITE_DONE || status == SQLITE_ERROR
-            || status == SQLITE_BUSY)
-        {
-            std::string errorMessage(sqlite3_errmsg(db));
-            throw std::runtime_error("Error: Insert failed: " + errorMessage
-                                     + " (" + std::to_string(status) + ")");
-        }
-        sqlite3_clear_bindings(dat_stat);
-        sqlite3_reset(dat_stat);
+        bool field_included =
+            (included_fields.find(token[2]) == included_fields.end());
+        token[15] = field_included ? "0" : "1";
+        data_meta.run_statement(token, 16, 1);
     }
     data.close();
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
-    sqlite3_exec(db, "CREATE INDEX 'DATA_Index' ON 'DATA_META' ('FieldID')",
-                 nullptr, nullptr, &zErrMsg);
+    data_meta.create_index("DATA_INDEX", std::vector<std::string> {"FieldID"});
 }
 
 std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
@@ -361,7 +213,6 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
     std::string field_id, instance_num;
     for (size_t i = 0; i < token.size(); ++i)
     {
-
         // remove "
         token[i].erase(std::remove(token[i].begin(), token[i].end(), '\"'),
                        token[i].end());
@@ -409,29 +260,9 @@ std::vector<pheno_info> get_pheno_meta(const std::string& pheno,
     return phenotype_meta;
 }
 
-void update_pheno_meta_db(sqlite3* db, sqlite3_stmt* insert_pheno_meta,
-                          const std::string& pheno_id,
-                          const std::string& field_id, const std::string& pheno)
-{
-    sqlite3_bind_text(insert_pheno_meta, 1, pheno_id.c_str(), -1,
-                      SQLITE_TRANSIENT);
-    sqlite3_bind_text(insert_pheno_meta, 2, field_id.c_str(), -1,
-                      SQLITE_TRANSIENT);
-    sqlite3_bind_text(insert_pheno_meta, 3, pheno.c_str(), -1,
-                      SQLITE_TRANSIENT);
-    int status = sqlite3_step(insert_pheno_meta);
-    if (status != SQLITE_DONE || status == SQLITE_ERROR
-        || status == SQLITE_BUSY)
-    {
-        std::string errorMessage(sqlite3_errmsg(db));
-        throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("
-                                 + std::to_string(status) + ")");
-    }
-    sqlite3_clear_bindings(insert_pheno_meta);
-    sqlite3_reset(insert_pheno_meta);
-}
+
 size_t get_phenotype_id(
-    sqlite3* db, sqlite3_stmt* insert_pheno_meta,
+    SQL& pheno_meta,
     std::unordered_map<std::string, std::unordered_map<std::string, size_t>>&
         pheno_id,
     size_t& pheno_meta_idx, const std::string& field_id,
@@ -445,9 +276,8 @@ size_t get_phenotype_id(
         else
         {
             pheno_id[field_id][pheno] = pheno_meta_idx;
-            update_pheno_meta_db(db, insert_pheno_meta,
-                                 std::to_string(pheno_meta_idx), field_id,
-                                 pheno);
+            pheno_meta.run_statement(std::vector<std::string> {
+                std::to_string(pheno_meta_idx), field_id, pheno});
             ++pheno_meta_idx;
             return pheno_meta_idx - 1;
         }
@@ -455,96 +285,44 @@ size_t get_phenotype_id(
     else
     {
         pheno_id[field_id][pheno] = pheno_meta_idx;
-        update_pheno_meta_db(db, insert_pheno_meta,
-                             std::to_string(pheno_meta_idx), field_id, pheno);
+        pheno_meta.run_statement(std::vector<std::string> {
+            std::to_string(pheno_meta_idx), field_id, pheno});
         ++pheno_meta_idx;
         return pheno_meta_idx - 1;
     }
 }
 
-void update_pheno_db(sqlite3* db, sqlite3_stmt* insert_pheno,
-                     const std::string& sample_id, const std::string& pheno_id,
-                     const std::string& instance)
-{
-    sqlite3_bind_text(insert_pheno, 1, sample_id.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(insert_pheno, 2, instance.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(insert_pheno, 3, pheno_id.c_str(), -1, SQLITE_TRANSIENT);
-    int status = sqlite3_step(insert_pheno);
-    if (status != SQLITE_DONE || status == SQLITE_ERROR
-        || status == SQLITE_BUSY)
-    {
-        std::string errorMessage(sqlite3_errmsg(db));
-        throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("
-                                 + std::to_string(status) + ")");
-    }
-    sqlite3_clear_bindings(insert_pheno);
-    sqlite3_reset(insert_pheno);
-}
 
-void print_progress(signed long long cur_loc, signed long long length,
-                    double& prev_percentage)
-{
-    double cur_progress =
-        (static_cast<double>(cur_loc) / static_cast<double>(length)) * 100.0;
-    if (cur_progress - prev_percentage > 0.01)
-    {
-        fprintf(stderr, "\rProcessing %03.2f%%", cur_progress);
-        prev_percentage = cur_progress;
-    }
-    else if (prev_percentage >= 100.0)
-    {
-        fprintf(stderr, "\rProcessing %03.2f%%", 100.0);
-    }
-}
-
-void insert_sample_db(sqlite3* db, sqlite3_stmt* insert_sample,
-                      const std::string& sample_id)
-{
-    sqlite3_bind_text(insert_sample, 1, sample_id.c_str(), -1,
-                      SQLITE_TRANSIENT);
-    sqlite3_bind_text(insert_sample, 2, (sample_id.at(0) == '-') ? "1" : "0",
-                      -1, SQLITE_TRANSIENT);
-    int status = sqlite3_step(insert_sample);
-    if (status != SQLITE_DONE || status == SQLITE_ERROR
-        || status == SQLITE_BUSY)
-    {
-        std::string errorMessage(sqlite3_errmsg(db));
-        throw std::runtime_error("Error: Insert failed: " + errorMessage + " ("
-                                 + std::to_string(status) + ")");
-    }
-    sqlite3_clear_bindings(insert_sample);
-    sqlite3_reset(insert_sample);
-}
-
-signed long long get_file_length(std::ifstream& pheno_file)
-{
-    pheno_file.seekg(0, pheno_file.end);
-    signed long long file_length = pheno_file.tellg();
-    pheno_file.clear();
-    pheno_file.seekg(0, pheno_file.beg);
-    return file_length;
-}
 void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                     const std::vector<std::string> pheno_names,
                     const bool danger)
 {
-    std::string insert_statement = "INSERT INTO SAMPLE(ID, DropOut) "
-                                   "VALUES(@S,@I)";
-    sqlite3_stmt* insert_sample;
-    sqlite3_prepare_v2(db, insert_statement.c_str(), -1, &insert_sample,
-                       nullptr);
-    std::string insert_pheno_statement = "INSERT INTO PHENOTYPE"
-                                         "(ID, Instance, PhenoID) "
-                                         "VALUES(@S,@I,@P)";
-    sqlite3_stmt* insert_pheno;
-    sqlite3_prepare_v2(db, insert_pheno_statement.c_str(), -1, &insert_pheno,
-                       nullptr);
-    std::string insert_pheno_meta_statement = "INSERT INTO  PHENO_META"
-                                              "(ID, FieldID, Pheno) "
-                                              "VALUES(@S,@I,@P)";
-    sqlite3_stmt* insert_meta;
-    sqlite3_prepare_v2(db, insert_pheno_meta_statement.c_str(), -1,
-                       &insert_meta, nullptr);
+    SQL phenotype("PHENOTYPE", db);
+    SQL pheno_meta("PHENO_META", db);
+    SQL participants("PARTICIPANT", db);
+    phenotype.create_table("CREATE TABLE PHENOTYPE("
+                           "ID INT NOT NULL,"
+                           "Instance INT NOT NULL,"
+                           "PhenoID INT NOT NULL,"
+                           "FOREIGN KEY (ID) REFERENCES PARTICIPANT(ID),"
+                           "FOREIGN KEY (PhenoID) REFERENCES PHENO_META(ID));");
+    pheno_meta.create_table(
+        "CREATE TABLE PHENO_META("
+        "ID INT PRIMARY KEY NOT NULL,"
+        "FieldID INT NOT NULL,"
+        "Pheno TEXT NOT NULL,"
+        "FOREIGN KEY (FieldID) REFERENCES DATA_META(FieldID));");
+    // drop out shouldn't even be stored in the database
+    participants.create_table("CREATE TABLE PARTICIPANT("
+                              "ID INT PRIMARY KEY NOT NULL);");
+    participants.prep_statement("INSERT INTO PARTICIPANT(ID) "
+                                "VALUES(@S)");
+    phenotype.prep_statement("INSERT INTO PHENOTYPE"
+                             "(ID, Instance, PhenoID) "
+                             "VALUES(@S,@I,@P)");
+    pheno_meta.prep_statement("INSERT INTO  PHENO_META"
+                              "(ID, FieldID, Pheno) "
+                              "VALUES(@S,@I,@P)");
     char* zErrMsg = nullptr;
     if (danger)
     {
@@ -554,7 +332,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                      &zErrMsg);
     }
 
-
+    // this is easy, but ugly
     std::unordered_map<std::string, std::unordered_map<std::string, size_t>>
         pheno_id_dict;
     std::unordered_set<std::string> processed_sample;
@@ -573,7 +351,6 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 + ". Please check you have the correct input");
         }
         std::string line;
-        std::string sql;
         // there is a header
         const signed long long file_length = get_file_length(pheno_file);
         std::cerr
@@ -621,22 +398,20 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                                 == processed_sample.end())
                 {
                     processed_sample.insert(token[i]);
-                    insert_sample_db(db, insert_sample, token[i]);
+                    participants.run_statement(token, i + 1, i);
                     continue;
                 }
                 else if (phenotype_meta[i].first == "NA")
                 {
-                    // skipped field
                     continue;
                 }
                 // check meta
-                size_t pheno_id = get_phenotype_id(
-                    db, insert_meta, pheno_id_dict, pheno_meta_idx,
-                    phenotype_meta[i].first, token[i]);
-
-                update_pheno_db(db, insert_pheno, token[id_idx],
-                                std::to_string(pheno_id),
-                                phenotype_meta[i].second);
+                size_t pheno_id =
+                    get_phenotype_id(pheno_meta, pheno_id_dict, pheno_meta_idx,
+                                     phenotype_meta[i].first, token[i]);
+                phenotype.run_statement(std::vector<std::string> {
+                    token[id_idx], std::to_string(pheno_id),
+                    phenotype_meta[i].second});
                 ++counts;
             }
         }
@@ -645,37 +420,201 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
     fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
     std::cerr << "Start building indexs" << std::endl;
-    std::string sql = "CREATE INDEX 'PHENOTYPE_INDEX' ON 'PHENOTYPE'  ('ID')";
-    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-    sql = "CREATE INDEX 'PHENOTYPE_INSTANCE_INDEX' ON 'PHENOTYPE'  "
-          "('Instance', 'PhenoID')";
-    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-    sql = "CREATE INDEX 'PHENOTYPE_FULL_INDEX' ON 'PHENOTYPE'  "
-          "('Instance', 'PhenoID', 'ID')";
-    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-    sql = "CREATE INDEX 'PHENOTYPE_NO_INSTANCE_INDEX' ON 'PHENOTYPE'  "
-          "('PhenoID', 'ID')";
-    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-    sql = "CREATE INDEX 'PHENOTYPE_META_INDEX' ON 'PHENO_META'  "
-          " ('FieldID', 'ID')";
-    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-    sql = "CREATE INDEX 'PHENOTYPE_META_LITE_INDEX' ON 'PHENO_META'  "
-          " ('FieldID')";
-    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &zErrMsg);
-
+    phenotype.create_index("PHENOTYPE_INDEX", std::vector<std::string> {"ID"});
+    phenotype.create_index("PHENOTYPE_INSTANCE_INDEX",
+                           std::vector<std::string> {"Instance", "PhenoID"});
+    phenotype.create_index(
+        "PHENOTYPE_FULL_INDEX",
+        std::vector<std::string> {"Instance", "PhenoID", "ID"});
+    phenotype.create_index("PHENOTYPE_NO_INSTANCE_INDEX",
+                           std::vector<std::string> {"PhenoID", "ID"});
+    pheno_meta.create_index("PHENOTYPE_META_INDEX",
+                            std::vector<std::string> {"FieldID", "ID"});
+    pheno_meta.create_index("PHENOTYPE_META_LITE_INDEX",
+                            std::vector<std::string> {"FieldID"});
+    pheno_meta.create_index(
+        "PHENOTYPE_META_FULL_INDEX",
+        std::vector<std::string> {"FieldID", "Pheno", "ID"});
     std::cerr << "A total of " << counts << " entries entered into database"
               << std::endl;
     if (na_entries)
     { std::cerr << "With " << na_entries << " NA entries" << std::endl; }
 }
 
+void load_provider(sqlite3* db)
+{
+    SQL gp_provider("gp_provider", db);
+    gp_provider.create_table("CREATE TABLE gp_provider(ID PRIMARY KEY INT NOT "
+                             "NULL, NAME TEXT NOT NULL );");
+    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+                            "VALUES(1, \"England(Vision)\")");
+    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+                            "VALUES(2, \"Scotland\")");
+    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+                            "VALUES(3, \"England(TPP)\")");
+    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+                            "VALUES(4, \"Wales\")");
+    gp_provider.create_index("PROVIDER_INDEX", std::vector<std::string> {"ID"});
+}
+void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
+{
+    if (gp_record.empty() && drug.empty()) return;
+    load_provider(db);
+    if (!gp_record.empty())
+    {
+        std::ifstream gp_file(gp_record.c_str());
+        if (!gp_file.is_open())
+        {
+            throw std::runtime_error(
+                "Error: Cannot open primary care record: " + gp_record
+                + ". Please check you have the correct input");
+        }
+        std::string line;
+        // there is a header
+        auto&& file_length = get_file_length(gp_file);
+        std::cerr
+            << std::endl
+            << "============================================================"
+            << std::endl;
+        std::cerr << "Header line of primary care record: " << std::endl;
+        std::getline(gp_file, line);
+        std::cerr << line << std::endl;
+        double prev_percentage = 0;
+        std::vector<std::string> token;
+        SQL gp_clinical("gp_clinical", db);
+        gp_clinical.create_table(
+            "CREATE TABLE gp_clinical("
+            "ID INT NOT NULL,"
+            "data_provider INT NOT NULL,"
+            "date_event TEXT NOT NULL, "
+            "Read2 TEXT, "
+            "Read3 TEXT, "
+            "Value1 TEXT,"
+            "Value2 TEXT,"
+            "Value3 TEXT, "
+            "FOREIGN KEY (ID) REFERENCES PARTICIPANT(ID),"
+            "FOREIGN KEY (data_provider) REFERENCES gp_provider(ID));");
+        gp_clinical.prep_statement(
+            "INSERT INTO DATA_META(ID, data_provider, date_event, Read2, "
+            "Read3, Value1, Value2, Value3) "
+            "VALUES(@ID,@PROVIDER,@DATE,@READ2,@READ3,@VALUE1,"
+            "@VALUE2,@VALUE3)");
+        char* zErrMsg = nullptr;
+        sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
+        while (std::getline(gp_file, line))
+        {
+            misc::trim(line);
+            if (line.empty()) continue;
+            print_progress(gp_file.tellg(), file_length, prev_percentage);
+            // CSV input
+            token = misc::csv_split(line);
+            if (token.size() != 8)
+            {
+                throw std::runtime_error(
+                    "Error: Undefined primary care record "
+                    "format! File is expected to have exactly 8 columns.\n"
+                    + line);
+            }
+            gp_clinical.run_statement(token);
+        }
+        gp_file.close();
+        sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
+        fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
+        gp_clinical.create_index("gp_clinical_read2",
+                                 std::vector<std::string> {"Read2", "ID"});
+        gp_clinical.create_index("gp_clinical_read3",
+                                 std::vector<std::string> {"Read3", "ID"});
+        gp_clinical.create_index(
+            "gp_clinical_reads",
+            std::vector<std::string> {"Read3", "Read2", "ID"});
+        gp_clinical.create_index("gp_clinical_date",
+                                 std::vector<std::string> {"date_event", "ID"});
+        gp_clinical.create_index(
+            "gp_clinical_reads_date",
+            std::vector<std::string> {"Read3", "Read2", "date_event", "ID"});
+    }
+    if (!drug.empty())
+    {
+        SQL gp_drug("gp_scripts", db);
+        std::ifstream drug_file(drug.c_str());
+        if (!drug_file.is_open())
+        {
+            throw std::runtime_error(
+                "Error: Cannot open prescription record: " + drug
+                + ". Please check you have the correct input");
+        }
+        std::string line;
+        // there is a header
+        auto&& file_length = get_file_length(drug_file);
+        std::cerr
+            << std::endl
+            << "============================================================"
+            << std::endl;
+        std::cerr << "Header line of prescription record: " << std::endl;
+        std::getline(drug_file, line);
+        std::cerr << line << std::endl;
+        double prev_percentage = 0;
+        std::vector<std::string> token;
+        SQL gp_script("gp_script", db);
+        gp_script.create_table(
+            "CREATE TABLE gp_scripts("
+            "ID INT NOT NULL, "
+            "data_provider INT NOT NULL, "
+            "date_Issue INT NOT NULL, "
+            "Read2 Text Not Null, "
+            "BNF_Code TEXT, "
+            "DMD_Code TEXT, "
+            "Drug_Name TEXT, "
+            "Quantity TEXT, "
+            "FOREIGN KEY (ID) REFERENCES Participant(ID),"
+            "FOREIGN KEY (Data_Provider) REFERENCES gp_provider(ID));");
+        gp_script.prep_statement(
+            "INSERT INTO DATA_META(ID, data_provider, date_Issue, Read2, "
+            "BNF_Code, DMD_Code, Drug_Name, Quantity) "
+            "VALUES(@ID,@PROVIDER,@DATE,@READ2,@READ3,@VALUE1,"
+            "@VALUE2,@VALUE3)");
+        char* zErrMsg = nullptr;
+        sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
+        while (std::getline(drug_file, line))
+        {
+            misc::trim(line);
+            if (line.empty()) continue;
+            print_progress(drug_file.tellg(), file_length, prev_percentage);
+            // CSV input
+            token = misc::csv_split(line);
+            if (token.size() != 8)
+            {
+                throw std::runtime_error(
+                    "Error: Undefined primary care record "
+                    "format! File is expected to have exactly 8 columns.\n"
+                    + line);
+            }
+            gp_script.run_statement(token);
+        }
+        drug_file.close();
+        sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
+        fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
+        gp_script.create_index("drug_name_index",
+                               std::vector<std::string> {"Drug_Name", "ID"});
+        gp_script.create_index(
+            "drug_name_date_index",
+            std::vector<std::string> {"Drug_Name", "date_issue", "ID"});
+        gp_script.create_index(
+            "drug_name_provider_index",
+            std::vector<std::string> {"Drug_Name", "data_provider", "ID"});
+        gp_script.create_index(
+            "drug_name_provider_date_index",
+            std::vector<std::string> {"Drug_Name", "date_issue",
+                                      "data_provider", "ID"});
+    }
+}
 
 void usage()
 {
 
     fprintf(stderr, " UK Biobank Phenotype Processing\n");
     fprintf(stderr, " Sam Choi\n");
-    fprintf(stderr, " v0.2.0 ( 2019-10-16 )\n");
+    fprintf(stderr, " v0.2.1 ( 2019-10-18 )\n");
     fprintf(stderr, " ==============================\n");
     fprintf(stderr, " This program will process the UK biobank Phenotype\n");
     fprintf(stderr, " information and generate a SQLite data base\n");
@@ -696,6 +635,8 @@ void usage()
             "http://biobank.ndph.ox.ac.uk/~bbdatan/Codings_Showcase.csv\n");
     fprintf(stderr, "    -p | --pheno    UK Biobank Phenotype file\n");
     fprintf(stderr, "    -o | --out      Name of the generated database\n");
+    fprintf(stderr, "    -g | --gp       gp_clinical table from ukbiobank\n");
+    fprintf(stderr, "    -u | --drug     gp_scripts table from ukbiobank\n");
     fprintf(stderr,
             "    -D | --danger   Enable optioned that speed up processing\n");
     fprintf(stderr,
@@ -712,13 +653,15 @@ int main(int argc, char* argv[])
         usage();
         return -1;
     }
-    static const char* optString = "d:c:p:o:m:rDh?";
+    static const char* optString = "d:c:p:o:m:g:u:rDh?";
     static const struct option longOpts[] = {
         {"data", required_argument, nullptr, 'd'},
         {"code", required_argument, nullptr, 'c'},
         {"pheno", required_argument, nullptr, 'p'},
         {"out", required_argument, nullptr, 'o'},
         {"memory", required_argument, nullptr, 'm'},
+        {"gp", required_argument, nullptr, 'g'},
+        {"drug", required_argument, nullptr, 'u'},
         {"replace", no_argument, nullptr, 'r'},
         {"danger", no_argument, nullptr, 'D'},
         {"help", no_argument, nullptr, 'h'},
@@ -727,7 +670,7 @@ int main(int argc, char* argv[])
     int opt = 0;
     opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
     std::string data_showcase, code_showcase, pheno_name, out_name,
-        memory = "1024";
+        memory = "1024", gp_name, drug_name;
     bool replace = false, danger = false;
     while (opt != -1)
     {
@@ -740,6 +683,8 @@ int main(int argc, char* argv[])
         case 'p': pheno_name = optarg; break;
         case 'o': out_name = optarg; break;
         case 'r': replace = true; break;
+        case 'g': gp_name = optarg; break;
+        case 'u': drug_name = optarg; break;
         case 'h':
         case '?': usage(); return 0;
         default:
@@ -801,12 +746,15 @@ int main(int argc, char* argv[])
         std::cerr << "Opened database: " << db_name << std::endl;
     }
 
-    create_tables(db, memory);
     std::unordered_set<std::string> included_fields;
     std::vector<std::string> pheno_names = misc::split(pheno_name, ",");
+    char* zErrMsg = nullptr;
+    sqlite3_exec(db, std::string("PRAGMA cache_size = " + memory).c_str(),
+                 nullptr, nullptr, &zErrMsg);
     load_phenotype(db, included_fields, pheno_names, danger);
     load_data(db, included_fields, data_showcase);
     load_code(db, code_showcase);
+    load_gp(db, gp_name, drug_name);
     sqlite3_close(db);
     return 0;
 }

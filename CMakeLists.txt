@@ -9,7 +9,7 @@ add_library(lib_sqlite3
 add_library(lib_misc
     ${CMAKE_SOURCE_DIR}/misc.cpp)
 include_directories(${CMAKE_SOURCE_DIR}/lib)
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(${PROJECT_NAME} main.cpp sql.cpp)
 target_link_libraries( ${PROJECT_NAME} PRIVATE lib_sqlite3 )
 target_link_libraries( ${PROJECT_NAME} PRIVATE lib_misc)
 

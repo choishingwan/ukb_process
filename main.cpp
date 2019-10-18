@@ -415,10 +415,10 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 ++counts;
             }
         }
+        fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
         pheno_file.close();
     }
     sqlite3_exec(db, "END TRANSACTION", nullptr, nullptr, &zErrMsg);
-    fprintf(stderr, "\rProcessing %03.2f%%\n", 100.0);
     std::cerr << "Start building indexs" << std::endl;
     phenotype.create_index("PHENOTYPE_INDEX", std::vector<std::string> {"ID"});
     phenotype.create_index("PHENOTYPE_INSTANCE_INDEX",

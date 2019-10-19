@@ -435,7 +435,8 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
     pheno_meta.create_index(
         "PHENOTYPE_META_FULL_INDEX",
         std::vector<std::string> {"FieldID", "Pheno", "ID"});
-    participants.create_index("PARTICIPANT", std::vector<std::string> {"ID"});
+    participants.create_index("PARTICIPANT_INDEX",
+                              std::vector<std::string> {"ID"});
     std::cerr << "A total of " << counts << " entries entered into database"
               << std::endl;
     if (na_entries)

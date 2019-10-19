@@ -13,6 +13,7 @@ void SQL::create_table(const std::string& sql)
     }
     catch (const std::runtime_error& er)
     {
+        std::cerr << "Failed to create: " << m_table_name << "\n";
         throw std::runtime_error(er.what());
     }
 }
@@ -22,7 +23,7 @@ void SQL::prep_statement(const std::string& sql)
     if (!m_table_created)
     {
         throw std::runtime_error("Error: Table: " + m_table_name
-                                 + "not created");
+                                 + " not created");
     }
     sqlite3_prepare_v2(m_db, sql.c_str(), -1, &m_statement, nullptr);
 }

@@ -7,7 +7,7 @@ void SQL::create_table(const std::string& sql)
 {
     try
     {
-        execute_sql(sql);
+        execute_sql(sql, true);
         std::cerr << "Table: " << m_table_name << " created sucessfully\n";
         m_table_created = true;
     }

@@ -1,12 +1,12 @@
 #ifndef PROCESS_SQL_H
 #define PROCESS_SQL_H
 
+#include <assert.h>
 #include <iostream>
 #include <sqlite3.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <assert.h> 
 class SQL
 {
 public:
@@ -28,9 +28,9 @@ public:
     }
     void create_index(const std::string& index_name,
                       const std::vector<std::string>& fields);
-    void execute_sql(const std::string& sql)
+    void execute_sql(const std::string& sql, bool table_creation = false)
     {
-        if (!m_table_created)
+        if (!m_table_created && !table_creation)
         {
             throw std::runtime_error("Error: Table: " + m_table_name
                                      + "not created");

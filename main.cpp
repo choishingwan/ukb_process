@@ -497,7 +497,7 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
             "FOREIGN KEY (ID) REFERENCES PARTICIPANT(ID),"
             "FOREIGN KEY (data_provider) REFERENCES gp_provider(ID));");
         gp_clinical.prep_statement(
-            "INSERT INTO DATA_META(ID, data_provider, date_event, Read2, "
+            "INSERT INTO gp_clinical(ID, data_provider, date_event, Read2, "
             "Read3, Value1, Value2, Value3) "
             "VALUES(@ID,@PROVIDER,@DATE,@READ2,@READ3,@VALUE1,"
             "@VALUE2,@VALUE3)");
@@ -571,7 +571,7 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
             "FOREIGN KEY (ID) REFERENCES Participant(ID),"
             "FOREIGN KEY (Data_Provider) REFERENCES gp_provider(ID));");
         gp_script.prep_statement(
-            "INSERT INTO DATA_META(ID, data_provider, date_Issue, Read2, "
+            "INSERT INTO gp_scripts(ID, data_provider, date_Issue, Read2, "
             "BNF_Code, DMD_Code, Drug_Name, Quantity) "
             "VALUES(@ID,@PROVIDER,@DATE,@READ2,@READ3,@VALUE1,"
             "@VALUE2,@VALUE3)");

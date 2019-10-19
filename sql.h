@@ -82,7 +82,7 @@ private:
         assert(begin < range);
         for (size_t i = begin; i < range; ++i)
         {
-            sqlite3_bind_text(m_statement, static_cast<int>(i + 1),
+            sqlite3_bind_text(m_statement, static_cast<int>(i + 1 - begin),
                               token[i].c_str(), -1, SQLITE_TRANSIENT);
         }
     }

@@ -448,13 +448,13 @@ void load_provider(sqlite3* db)
     SQL gp_provider("gp_provider", db);
     gp_provider.create_table("CREATE TABLE gp_provider(ID INT PRIMARY KEY NOT "
                              "NULL, NAME TEXT NOT NULL );");
-    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+    gp_provider.execute_sql("insert into gp_provider (ID, PROVIDER) "
                             "VALUES(1, \"England(Vision)\")");
-    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+    gp_provider.execute_sql("insert into gp_provider (ID, PROVIDER) "
                             "VALUES(2, \"Scotland\")");
-    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+    gp_provider.execute_sql("insert into gp_provider (ID, PROVIDER) "
                             "VALUES(3, \"England(TPP)\")");
-    gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
+    gp_provider.execute_sql("insert into gp_provider (ID, PROVIDER) "
                             "VALUES(4, \"Wales\")");
     gp_provider.create_index("PROVIDER_INDEX", std::vector<std::string> {"ID"});
 }

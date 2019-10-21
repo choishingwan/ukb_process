@@ -410,7 +410,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
     std::cerr << "Start building indexs" << std::endl;
     phenotype.create_index("PHENOTYPE_INDEX", std::vector<std::string> {"ID"});
     phenotype.create_index("PHENOTYPE_INSTANCE_INDEX",
-                           std::vector<std::string> {"Instance", "PhenoID"});
+                           std::vector<std::string> {"Instance", "Pheno"});
     phenotype.create_index(
         "PHENOTYPE_FULL_INDEX",
         std::vector<std::string> {"Instance", "Pheno", "FieldID", "ID"});

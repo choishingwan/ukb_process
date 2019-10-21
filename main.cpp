@@ -509,19 +509,14 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
         sqlite3_exec(db, "BEGIN TRANSACTION", nullptr, nullptr, &zErrMsg);
         while (std::getline(gp_file, line))
         {
+            // if we trim, then the last line of tab will be problematic
+            // e.g. A\tB\t\t\t\t will be problematic
             misc::trim(line);
             if (line.empty()) continue;
             print_progress(gp_file.tellg(), file_length, prev_percentage);
             // CSV input
             // token = misc::split(line);
             misc::split(token, line, "\t");
-            if (token.size() != 8)
-            {
-                throw std::runtime_error(
-                    "Error: Undefined primary care record "
-                    "format! File is expected to have exactly 8 columns.\n"
-                    + line);
-            }
             gp_clinical.run_statement(token);
         }
         gp_file.close();
@@ -589,13 +584,6 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
             print_progress(drug_file.tellg(), file_length, prev_percentage);
             // CSV input
             token = misc::split(line);
-            if (token.size() != 8)
-            {
-                throw std::runtime_error(
-                    "Error: Undefined primary care record "
-                    "format! File is expected to have exactly 8 columns.\n"
-                    + line);
-            }
             gp_script.run_statement(token);
         }
         drug_file.close();

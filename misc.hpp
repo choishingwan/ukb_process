@@ -375,13 +375,17 @@ inline void split(std::vector<std::string>& result, const std::string& seq,
         if (pos > prev)
         {
             result.emplace_back(seq.substr(prev, pos - prev));
-            std::cerr << seq.substr(prev, pos - prev);
+            std::cerr << seq.substr(prev, pos - prev) << std::endl;
         }
         prev = pos + 1;
     }
-    std::cerr << prev << "\t" << seq.length() << std::endl;
+    std::cerr << "Last separators? " << prev << "\t" << seq.length()
+              << std::endl;
     if (prev < seq.length())
+    {
         result.emplace_back(seq.substr(prev, std::string::npos));
+        std::cerr << seq.substr(prev, std::string::npos) << std::endl;
+    }
 }
 template <typename T>
 inline T convert(const std::string& str)

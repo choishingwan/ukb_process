@@ -460,7 +460,11 @@ void load_provider(sqlite3* db)
 }
 void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
 {
-    if (gp_record.empty() && drug.empty()) return;
+    if (gp_record.empty() && drug.empty())
+    {
+        std::cerr << "No primary care record provided." << std::endl;
+        return;
+    }
     load_provider(db);
     if (!gp_record.empty())
     {

@@ -446,7 +446,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
 void load_provider(sqlite3* db)
 {
     SQL gp_provider("gp_provider", db);
-    gp_provider.create_table("CREATE TABLE gp_provider(ID PRIMARY KEY INT NOT "
+    gp_provider.create_table("CREATE TABLE gp_provider(ID INT PRIMARY KEY NOT "
                              "NULL, NAME TEXT NOT NULL );");
     gp_provider.execute_sql("insert into HEALTH_PROVIDER (ID, PROVIDER) "
                             "VALUES(1, \"England(Vision)\")");

@@ -1,4 +1,4 @@
-#include "misc.hpp"
+﻿#include "misc.hpp"
 #include "sql.h"
 #include <algorithm>
 #include <cstdlib>
@@ -513,7 +513,7 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
             if (line.empty()) continue;
             print_progress(gp_file.tellg(), file_length, prev_percentage);
             // CSV input
-            token = misc::csv_split(line);
+            token = misc::split(line);
             if (token.size() != 8)
             {
                 throw std::runtime_error(
@@ -587,7 +587,7 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
             if (line.empty()) continue;
             print_progress(drug_file.tellg(), file_length, prev_percentage);
             // CSV input
-            token = misc::csv_split(line);
+            token = misc::split(line);
             if (token.size() != 8)
             {
                 throw std::runtime_error(

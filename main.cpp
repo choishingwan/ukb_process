@@ -298,31 +298,23 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                     const bool danger)
 {
     SQL phenotype("PHENOTYPE", db);
-    SQL pheno_meta("PHENO_META", db);
     SQL participants("PARTICIPANT", db);
-    phenotype.create_table("CREATE TABLE PHENOTYPE("
-                           "ID INT NOT NULL,"
-                           "Instance INT NOT NULL,"
-                           "PhenoID INT NOT NULL,"
-                           "FOREIGN KEY (ID) REFERENCES PARTICIPANT(ID),"
-                           "FOREIGN KEY (PhenoID) REFERENCES PHENO_META(ID));");
-    pheno_meta.create_table(
-        "CREATE TABLE PHENO_META("
-        "ID INT PRIMARY KEY NOT NULL,"
-        "FieldID INT NOT NULL,"
-        "Pheno TEXT NOT NULL,"
+    phenotype.create_table(
+        "CREATE TABLE PHENOTYPE("
+        "ID INT NOT NULL,"
+        "Instance INT NOT NULL,"
+        "Pheno INT NOT NULL,"
+        "FieldID INT NOT NULL"
+        "FOREIGN KEY (ID) REFERENCES PARTICIPANT(ID),"
         "FOREIGN KEY (FieldID) REFERENCES DATA_META(FieldID));");
+    phenotype.prep_statement("INSERT INTO PHENOTYPE"
+                             "(ID, Instance, FieldID, Pheno) "
+                             "VALUES(@S,@I,@F,@P)");
     // drop out shouldn't even be stored in the database
     participants.create_table("CREATE TABLE PARTICIPANT("
                               "ID INT PRIMARY KEY NOT NULL);");
     participants.prep_statement("INSERT INTO PARTICIPANT(ID) "
                                 "VALUES(@S)");
-    phenotype.prep_statement("INSERT INTO PHENOTYPE"
-                             "(ID, Instance, PhenoID) "
-                             "VALUES(@S,@I,@P)");
-    pheno_meta.prep_statement("INSERT INTO  PHENO_META"
-                              "(ID, FieldID, Pheno) "
-                              "VALUES(@S,@I,@P)");
     char* zErrMsg = nullptr;
     if (danger)
     {
@@ -405,13 +397,9 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                 {
                     continue;
                 }
-                // check meta
-                size_t pheno_id =
-                    get_phenotype_id(pheno_meta, pheno_id_dict, pheno_meta_idx,
-                                     phenotype_meta[i].first, token[i]);
                 phenotype.run_statement(std::vector<std::string> {
-                    token[id_idx], std::to_string(pheno_id),
-                    phenotype_meta[i].second});
+                    token[id_idx], phenotype_meta[i].second,
+                    phenotype_meta[i].first, token[i]});
                 ++counts;
             }
         }
@@ -425,16 +413,12 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
                            std::vector<std::string> {"Instance", "PhenoID"});
     phenotype.create_index(
         "PHENOTYPE_FULL_INDEX",
-        std::vector<std::string> {"Instance", "PhenoID", "ID"});
+        std::vector<std::string> {"Instance", "Pheno", "FieldID", "ID"});
     phenotype.create_index("PHENOTYPE_NO_INSTANCE_INDEX",
-                           std::vector<std::string> {"PhenoID", "ID"});
-    pheno_meta.create_index("PHENOTYPE_META_INDEX",
-                            std::vector<std::string> {"FieldID", "ID"});
-    pheno_meta.create_index("PHENOTYPE_META_LITE_INDEX",
-                            std::vector<std::string> {"FieldID"});
-    pheno_meta.create_index(
-        "PHENOTYPE_META_FULL_INDEX",
-        std::vector<std::string> {"FieldID", "Pheno", "ID"});
+                           std::vector<std::string> {"Pheno", "FieldID", "ID"});
+    phenotype.create_index(
+        "PHENOTYPE_INSTANCE_INDEX",
+        std::vector<std::string> {"FieldID", "Instance", "ID"});
     participants.create_index("PARTICIPANT_INDEX",
                               std::vector<std::string> {"ID"});
     std::cerr << "A total of " << counts << " entries entered into database"

@@ -348,29 +348,6 @@ inline std::vector<std::string> csv_split(const std::string& seq)
     return result;
 }
 
-// should allow empty string between delimiter
-inline void split_empty(
-    std::vector<std::string>& theStringVector, /* Altered/returned value */
-    const std::string& theString, const std::string& theDelimiter)
-{
-    theStringVector.clear();
-    assert(theDelimiter.length() > 0);
-    size_t start = 0, end = 0;
-
-    while (end != std::string::npos)
-    {
-        end = theString.find(theDelimiter, start);
-        // If at end, use length=maxLength.  Else use length=end-start.
-        theStringVector.push_back(theString.substr(
-            start,
-            (end == std::string::npos) ? std::string::npos : end - start));
-
-        // If at end, use start=maxSize.  Else use start=end+delimiter.
-        start = ((end > (std::string::npos - theDelimiter.size()))
-                     ? std::string::npos
-                     : end + theDelimiter.size());
-    }
-}
 // codes from stackoverflow
 inline std::vector<std::string> split(const std::string& seq,
                                       const std::string& separators = "\t ")
@@ -394,9 +371,15 @@ inline void split(std::vector<std::string>& result, const std::string& seq,
     result.clear();
     while ((pos = seq.find_first_of(separators, prev)) != std::string::npos)
     {
-        if (pos > prev) result.emplace_back(seq.substr(prev, pos - prev));
+        std::cerr << pos << "\t" << prev << std::endl;
+        if (pos > prev)
+        {
+            result.emplace_back(seq.substr(prev, pos - prev));
+            std::cerr << seq.substr(prev, pos - prev);
+        }
         prev = pos + 1;
     }
+    std::cerr << prev << "\t" << seq.length() << std::endl;
     if (prev < seq.length())
         result.emplace_back(seq.substr(prev, std::string::npos));
 }

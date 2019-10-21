@@ -514,7 +514,7 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
             print_progress(gp_file.tellg(), file_length, prev_percentage);
             // CSV input
             // token = misc::split(line);
-            misc::split_empty(token, line, "\t");
+            misc::split(token, line, "\t");
             if (token.size() != 8)
             {
                 throw std::runtime_error(

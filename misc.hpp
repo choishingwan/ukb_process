@@ -371,21 +371,11 @@ inline void split(std::vector<std::string>& result, const std::string& seq,
     result.clear();
     while ((pos = seq.find_first_of(separators, prev)) != std::string::npos)
     {
-        std::cerr << pos << "\t" << prev << std::endl;
-        if (pos > prev)
-        {
-            result.emplace_back(seq.substr(prev, pos - prev));
-            std::cerr << seq.substr(prev, pos - prev) << std::endl;
-        }
+        if (pos > prev) { result.emplace_back(seq.substr(prev, pos - prev)); }
         prev = pos + 1;
     }
-    std::cerr << "Last separators? " << prev << "\t" << seq.length()
-              << std::endl;
     if (prev < seq.length())
-    {
-        result.emplace_back(seq.substr(prev, std::string::npos));
-        std::cerr << seq.substr(prev, std::string::npos) << std::endl;
-    }
+    { result.emplace_back(seq.substr(prev, std::string::npos)); }
 }
 template <typename T>
 inline T convert(const std::string& str)

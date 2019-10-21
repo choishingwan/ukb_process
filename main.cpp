@@ -377,7 +377,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
             if (line.empty()) continue;
             print_progress(pheno_file.tellg(), file_length, prev_percentage);
             // Tab Delim
-            token = misc::split(line, "\t");
+            misc::split(token, line, "\t");
             if (token.size() != num_pheno)
             {
                 throw std::runtime_error(
@@ -583,7 +583,7 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
             if (line.empty()) continue;
             print_progress(drug_file.tellg(), file_length, prev_percentage);
             // CSV input
-            token = misc::split(line);
+            misc::split(token, line, "\t");
             gp_script.run_statement(token);
         }
         drug_file.close();

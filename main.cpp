@@ -304,7 +304,7 @@ void load_phenotype(sqlite3* db, std::unordered_set<std::string>& fields,
         "ID INT NOT NULL,"
         "Instance INT NOT NULL,"
         "Pheno INT NOT NULL,"
-        "FieldID INT NOT NULL"
+        "FieldID INT NOT NULL,"
         "FOREIGN KEY (ID) REFERENCES PARTICIPANT(ID),"
         "FOREIGN KEY (FieldID) REFERENCES DATA_META(FieldID));");
     phenotype.prep_statement("INSERT INTO PHENOTYPE"

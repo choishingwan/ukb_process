@@ -541,7 +541,7 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
         std::cerr << line << std::endl;
         double prev_percentage = 0;
         std::vector<std::string> token;
-        SQL gp_script("gp_script", db);
+        SQL gp_script("gp_scripts", db);
         gp_script.create_table(
             "CREATE TABLE gp_scripts("
             "ID INT NOT NULL, "
@@ -581,10 +581,9 @@ void load_gp(sqlite3* db, const std::string& gp_record, const std::string& drug)
         gp_script.create_index(
             "drug_name_provider_index",
             std::vector<std::string> {"Drug_Name", "data_provider", "ID"});
-        gp_script.create_index(
-            "drug_name_provider_date_index",
-            std::vector<std::string> {"Drug_Name", "date_issue",
-                                      "data_provider", "ID"});
+        gp_script.create_index("drug_full_index", std::vector<std::string> {
+                                                      "Drug_Name", "date_issue",
+                                                      "data_provider", "ID"});
     }
 }
 
